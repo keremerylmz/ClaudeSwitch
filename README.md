@@ -91,7 +91,7 @@ Run anyway**.
 ### Build from source
 
 ```powershell
-git clone https://github.com/kerem01121/ClaudeSwitch
+git clone https://github.com/keremerylmz/ClaudeSwitch
 cd ClaudeSwitch
 .\build.ps1 -SelfContained -Test
 ```
