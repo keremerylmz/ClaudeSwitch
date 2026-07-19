@@ -1,0 +1,6 @@
+# Every change needs the repository owner's approval before it can be merged.
+# Paired with branch protection ("require review from Code Owners") on main, this means
+# collaborators open pull requests and @keremerylmz reviews them — nobody can push to main
+# directly, including collaborators with write access.
+
+* @keremerylmz
