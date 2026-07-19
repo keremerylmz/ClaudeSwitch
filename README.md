@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="ClaudeSwitch" width="820">
+  <img src="docs/hero.svg" alt="ClaudeSwitch — hit your limit at 2am? Switch and keep going." width="900">
 </p>
 
 <p align="center">
