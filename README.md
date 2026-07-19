@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/hero.svg" alt="ClaudeSwitch — hit your limit at 2am? Switch and keep going." width="900">
+  <img src="docs/hero.png" alt="ClaudeSwitch — switch Claude accounts without losing your place." width="900">
 </p>
 
 <p align="center">
@@ -33,7 +33,7 @@ Claude Code**, and adds the thing that actually matters day-to-day:
 > do it, you never lose your place. **This is the feature that sets ClaudeSwitch apart.**
 
 <p align="center">
-  <img src="docs/flow.svg" alt="How it works" width="840">
+  <img src="docs/flow.png" alt="How it works" width="840">
 </p>
 
 <p align="center">

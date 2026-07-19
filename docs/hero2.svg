@@ -1,0 +1,91 @@
+<svg width="640" height="320" viewBox="0 0 640 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ClaudeSwitch">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="640" y2="320" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#141110"/>
+      <stop offset="1" stop-color="#1C1613"/>
+    </linearGradient>
+    <radialGradient id="glow2" cx="0.74" cy="0.32" r="0.6">
+      <stop stop-color="#D97757" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#D97757" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tile2" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#E0876B"/><stop offset="1" stop-color="#C96442"/>
+    </linearGradient>
+    <pattern id="dots2" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#FFFFFF" fill-opacity="0.022"/>
+    </pattern>
+    <filter id="shadow2" x="-40%" y="-40%" width="180%" height="190%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <style>.s { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; }</style>
+  </defs>
+
+  <rect width="640" height="320" fill="url(#bg2)"/>
+  <rect width="640" height="320" fill="url(#dots2)"/>
+  <rect width="640" height="320" fill="url(#glow2)"/>
+
+  <!-- ── left ─────────────────────────── -->
+  <g transform="translate(40,38)">
+    <rect width="26" height="26" rx="7" fill="url(#tile2)"/>
+    <g stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M8 10 H18"/><path d="M15.2 7 L18 10 L15.2 13"/>
+      <path d="M18 16 H8"/><path d="M10.8 13 L8 16 L10.8 19"/>
+    </g>
+    <text x="36" y="18" class="s" font-size="15" font-weight="600" fill="#F2ECE7" letter-spacing="0.2">ClaudeSwitch</text>
+  </g>
+
+  <text x="40" y="128" class="s" font-size="30" font-weight="700" fill="#F7F3EF" letter-spacing="-0.4">Switch Claude</text>
+  <text x="40" y="162" class="s" font-size="30" font-weight="700" fill="#F7F3EF" letter-spacing="-0.4">accounts without</text>
+  <text x="40" y="196" class="s" font-size="30" font-weight="700" fill="#F7F3EF" letter-spacing="-0.4">losing your place.</text>
+
+  <text x="41" y="230" class="s" font-size="12.5" fill="#A79E96">One click across CLI, VS Code &amp; Desktop —</text>
+  <text x="41" y="248" class="s" font-size="12.5" fill="#A79E96">same session, no restart.</text>
+
+  <rect x="41" y="270" width="30" height="2.5" rx="1.25" fill="#D97757"/>
+  <g class="s" font-size="11" font-weight="500" transform="translate(41,296)">
+    <text x="0" y="0" fill="#CFC7BF">Real usage %</text>
+    <circle cx="76" cy="-3.5" r="1.6" fill="#5A524C"/>
+    <text x="88" y="0" fill="#CFC7BF">Encrypted</text>
+    <circle cx="152" cy="-3.5" r="1.6" fill="#5A524C"/>
+    <text x="164" y="0" fill="#CFC7BF">MIT</text>
+  </g>
+
+  <!-- ── right: app window ─────────────── -->
+  <g transform="translate(406,44)" filter="url(#shadow2)">
+    <rect width="212" height="232" rx="13" fill="#FFFFFF"/>
+
+    <rect width="212" height="44" rx="13" fill="#FAFAF9"/>
+    <rect y="32" width="212" height="12" fill="#FAFAF9"/>
+    <rect y="43" width="212" height="1" fill="#ECEAE6"/>
+    <rect x="14" y="15" width="15" height="15" rx="4.5" fill="url(#tile2)"/>
+    <text x="35" y="26" class="s" font-size="11" font-weight="700" fill="#1A1A19">ClaudeSwitch</text>
+    <text x="198" y="26" class="s" font-size="12" fill="#A8A29B" text-anchor="end">⟳</text>
+
+    <!-- active card -->
+    <g transform="translate(12,54)">
+      <rect width="188" height="74" rx="9" fill="#FBF0EC" stroke="#D97757" stroke-width="1.1"/>
+      <circle cx="26" cy="24" r="12.5" fill="#F6E0D8"/>
+      <text x="26" y="28" class="s" font-size="11" font-weight="700" fill="#C96442" text-anchor="middle">Y</text>
+      <text x="46" y="21" class="s" font-size="11" font-weight="700" fill="#1A1A19">you@example.com</text>
+      <text x="46" y="35" class="s" font-size="9.5" fill="#8A837C">MAX · Active</text>
+      <text x="14" y="56" class="s" font-size="9.5" fill="#8A837C">5-hour</text>
+      <text x="174" y="56" class="s" font-size="10" font-weight="700" fill="#1A1A19" text-anchor="end">24%</text>
+      <rect x="14" y="62" width="160" height="5" rx="2.5" fill="#EFEDE9"/>
+      <rect x="14" y="62" width="38" height="5" rx="2.5" fill="#2F7A5B"/>
+    </g>
+
+    <!-- second card -->
+    <g transform="translate(12,138)">
+      <rect width="188" height="74" rx="9" fill="#FFFFFF" stroke="#ECEAE6"/>
+      <circle cx="26" cy="24" r="12.5" fill="#F0EEEA"/>
+      <text x="26" y="28" class="s" font-size="11" font-weight="700" fill="#8A837C" text-anchor="middle">W</text>
+      <text x="46" y="21" class="s" font-size="11" font-weight="700" fill="#1A1A19">work@acme.com</text>
+      <text x="46" y="35" class="s" font-size="9.5" fill="#8A837C">PRO · Ready</text>
+      <g transform="translate(140,13)"><rect width="34" height="17" rx="4.5" fill="#C96442"/><text x="17" y="12" class="s" font-size="9" font-weight="700" fill="#FFFFFF" text-anchor="middle">Switch</text></g>
+      <text x="14" y="56" class="s" font-size="9.5" fill="#8A837C">5-hour</text>
+      <text x="174" y="56" class="s" font-size="10" font-weight="700" fill="#1A1A19" text-anchor="end">6%</text>
+      <rect x="14" y="62" width="160" height="5" rx="2.5" fill="#EFEDE9"/>
+      <rect x="14" y="62" width="10" height="5" rx="2.5" fill="#2F7A5B"/>
+    </g>
+  </g>
+</svg>
