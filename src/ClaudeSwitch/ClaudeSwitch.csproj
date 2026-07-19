@@ -33,7 +33,9 @@
     <!-- Single-file publish knobs (used by build.ps1 / CI) -->
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Single-file compression is only supported for self-contained publishes; enabling it
+         unconditionally breaks the framework-dependent ("lite") build with NETSDK1176. -->
+    <EnableCompressionInSingleFile Condition="'$(SelfContained)' == 'true'">true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
   </PropertyGroup>
 
