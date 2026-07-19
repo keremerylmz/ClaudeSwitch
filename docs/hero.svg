@@ -1,111 +1,107 @@
-<svg width="1000" height="440" viewBox="0 0 1000 440" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ClaudeSwitch hero">
+<svg width="1000" height="430" viewBox="0 0 1000 430" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ClaudeSwitch">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1000" y2="440" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#12100E"/>
-      <stop offset="1" stop-color="#1E1712"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1000" y2="430" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#141110"/>
+      <stop offset="1" stop-color="#1C1613"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#E0876B"/>
-      <stop offset="1" stop-color="#C96442"/>
-    </linearGradient>
-    <linearGradient id="redbar" x1="0" y1="0" x2="1" y2="0">
-      <stop stop-color="#C96442"/>
-      <stop offset="1" stop-color="#B4443A"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.78" cy="0.42" r="0.5">
-      <stop stop-color="#C96442" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#C96442" stop-opacity="0"/>
+    <radialGradient id="glow" cx="0.72" cy="0.34" r="0.55">
+      <stop stop-color="#D97757" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#D97757" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#E0876B"/><stop offset="1" stop-color="#C96442"/>
+    </linearGradient>
+    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="1.2" cy="1.2" r="1.2" fill="#FFFFFF" fill-opacity="0.022"/>
+    </pattern>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="18" stdDeviation="26" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
     <style>
-      .h  { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; }
-      .mono { font-family: 'Cascadia Code', 'Consolas', monospace; }
+      .s { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; }
     </style>
   </defs>
 
-  <rect width="1000" height="440" rx="20" fill="url(#bg)"/>
-  <rect width="1000" height="440" rx="20" fill="url(#glow)"/>
+  <rect width="1000" height="430" rx="22" fill="url(#bg)"/>
+  <rect width="1000" height="430" rx="22" fill="url(#dots)"/>
+  <rect width="1000" height="430" rx="22" fill="url(#glow)"/>
 
-  <!-- ── left column ─────────────────────────────────────── -->
-
-  <!-- brand -->
-  <g transform="translate(48,44)">
-    <rect width="30" height="30" rx="8" fill="url(#accent)"/>
+  <!-- ── left: copy ─────────────────────────────────────── -->
+  <g transform="translate(60,58)">
+    <rect width="30" height="30" rx="8" fill="url(#tile)"/>
     <g stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none">
       <path d="M9 11.5 H21"/><path d="M17.5 8 L21 11.5 L17.5 15"/>
       <path d="M21 18.5 H9"/><path d="M12.5 15 L9 18.5 L12.5 22"/>
     </g>
-    <text x="42" y="21" class="h" font-size="18" font-weight="700" fill="#F5EFEA">ClaudeSwitch</text>
+    <text x="42" y="21" class="s" font-size="17" font-weight="600" fill="#F2ECE7" letter-spacing="0.2">ClaudeSwitch</text>
   </g>
 
-  <!-- accent tagline -->
-  <text x="48" y="120" class="h" font-size="15" font-weight="600" fill="#E0876B">Never lose your place switching accounts.</text>
+  <text x="60" y="176" class="s" font-size="43" font-weight="700" fill="#F7F3EF" letter-spacing="-0.5">Switch Claude accounts</text>
+  <text x="60" y="224" class="s" font-size="43" font-weight="700" fill="#F7F3EF" letter-spacing="-0.5">without losing your place.</text>
 
-  <!-- headline -->
-  <text x="46" y="176" class="h" font-size="40" font-weight="800" fill="#FBF7F4">Hit your limit at 2am?</text>
-  <text x="46" y="224" class="h" font-size="40" font-weight="800" fill="#FBF7F4">Switch and keep going.</text>
+  <text x="61" y="266" class="s" font-size="15.5" fill="#A79E96">One click swaps your account across the CLI, the VS Code</text>
+  <text x="61" y="289" class="s" font-size="15.5" fill="#A79E96">extension, and Claude Desktop — same session, no restart.</text>
 
-  <!-- description -->
-  <text x="48" y="266" class="h" font-size="15" fill="#B8AEA6">One click swaps your account across the Claude Code CLI,</text>
-  <text x="48" y="288" class="h" font-size="15" fill="#B8AEA6">the VS Code extension, and Claude Desktop — same session,</text>
-  <text x="48" y="310" class="h" font-size="15" fill="#B8AEA6">no restart. Just type “continue”.</text>
+  <!-- thin accent rule -->
+  <rect x="61" y="318" width="38" height="3" rx="1.5" fill="#D97757"/>
 
-  <!-- command / flow pill -->
-  <g transform="translate(48,336)">
-    <rect width="470" height="40" rx="9" fill="#0C0B0A" stroke="#2E2723"/>
-    <text x="16" y="26" class="mono" font-size="14" fill="#7FB89B">▸</text>
-    <text x="36" y="26" class="mono" font-size="14" fill="#CFC7BF">switch  →  <tspan fill="#E0876B">"continue"</tspan>  →  right back where you were</text>
+  <!-- feature row with mid-dots -->
+  <g class="s" font-size="13.5" font-weight="500" transform="translate(61,352)">
+    <text x="0" y="0" fill="#CFC7BF">Real usage %</text>
+    <circle cx="98" cy="-4" r="2" fill="#5A524C"/>
+    <text x="114" y="0" fill="#CFC7BF">CLI · VS Code · Desktop</text>
+    <circle cx="296" cy="-4" r="2" fill="#5A524C"/>
+    <text x="312" y="0" fill="#CFC7BF">Encrypted</text>
   </g>
 
-  <!-- feature chips -->
-  <g class="h" font-size="12.5" font-weight="600" transform="translate(48,398)">
-    <g><rect width="118" height="26" rx="13" fill="#241E1A" stroke="#37302B"/><text x="15" y="17" fill="#E0876B">◆ real usage %</text></g>
-    <g transform="translate(128,0)"><rect width="150" height="26" rx="13" fill="#241E1A" stroke="#37302B"/><text x="15" y="17" fill="#9FB4D9">◈ DPAPI-encrypted</text></g>
-    <g transform="translate(288,0)"><rect width="96" height="26" rx="13" fill="#241E1A" stroke="#37302B"/><text x="15" y="17" fill="#8FBFA6">◆ Windows</text></g>
-    <g transform="translate(394,0)"><rect width="66" height="26" rx="13" fill="#241E1A" stroke="#37302B"/><text x="15" y="17" fill="#9A928B">MIT</text></g>
-  </g>
+  <!-- small meta line -->
+  <text x="61" y="392" class="s" font-size="12.5" fill="#6E665F">Free · open source · MIT · Windows</text>
 
-  <!-- ── right widget: the switch, before → after ───────────── -->
-  <g transform="translate(620,70)">
-    <rect width="330" height="300" rx="16" fill="#161311" stroke="#2C2521"/>
+  <!-- ── right: the real app window, floating ───────────── -->
+  <g transform="translate(628,54)" filter="url(#shadow)">
+    <rect width="322" height="322" rx="15" fill="#FFFFFF"/>
 
-    <text x="24" y="40" class="h" font-size="11" font-weight="700" letter-spacing="1.5" fill="#8A817A">CURRENT ACCOUNT</text>
+    <!-- header -->
+    <rect width="322" height="58" rx="15" fill="#FAFAF9"/>
+    <rect y="43" width="322" height="15" fill="#FAFAF9"/>
+    <rect y="57" width="322" height="1" fill="#ECEAE6"/>
+    <rect x="18" y="20" width="18" height="18" rx="5" fill="url(#tile)"/>
+    <text x="44" y="34" class="s" font-size="13" font-weight="700" fill="#1A1A19">ClaudeSwitch</text>
+    <text x="304" y="34" class="s" font-size="14" fill="#A8A29B" text-anchor="end">⟳</text>
 
-    <!-- before: near the limit -->
-    <g transform="translate(24,54)">
-      <circle cx="15" cy="15" r="15" fill="#2A211D"/>
-      <text x="15" y="20" class="h" font-size="13" font-weight="700" fill="#E0876B" text-anchor="middle">K</text>
-      <text x="42" y="14" class="h" font-size="13.5" font-weight="700" fill="#F0EAE5">you@example.com</text>
-      <text x="42" y="31" class="h" font-size="11.5" fill="#8A817A">MAX · 5-hour limit</text>
-
-      <rect x="0" y="48" width="282" height="7" rx="3.5" fill="#241E1A"/>
-      <rect x="0" y="48" width="262" height="7" rx="3.5" fill="url(#redbar)"/>
-      <text x="0" y="76" class="h" font-size="12" fill="#B8AEA6">93% used</text>
-      <text x="282" y="76" class="h" font-size="12" font-weight="700" fill="#C96442" text-anchor="end">resets in 4h 12m</text>
-    </g>
-
-    <!-- switch arrow -->
-    <g transform="translate(0,168)">
-      <line x1="24" y1="0" x2="306" y2="0" stroke="#2C2521"/>
-      <g transform="translate(141,-12)">
-        <circle cx="12" cy="12" r="14" fill="url(#accent)"/>
-        <g stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" fill="none">
-          <path d="M6 9 H18"/><path d="M15 6.5 L18 9 L15 11.5"/>
-          <path d="M18 15 H6"/><path d="M9 12.5 L6 15 L9 17.5"/>
-        </g>
+    <!-- active account card -->
+    <g transform="translate(16,74)">
+      <rect width="290" height="106" rx="11" fill="#FBF0EC" stroke="#D97757" stroke-width="1.2"/>
+      <circle cx="34" cy="30" r="16" fill="#F6E0D8"/>
+      <text x="34" y="35" class="s" font-size="14" font-weight="700" fill="#C96442" text-anchor="middle">Y</text>
+      <text x="60" y="27" class="s" font-size="13.5" font-weight="700" fill="#1A1A19">you@example.com</text>
+      <text x="60" y="44" class="s" font-size="11.5" fill="#8A837C">Ready</text>
+      <g transform="translate(206,18)">
+        <rect width="34" height="20" rx="5" fill="#F1EEEA"/><text x="17" y="14" class="s" font-size="10" font-weight="700" fill="#8A837C" text-anchor="middle">MAX</text>
+        <rect x="40" y="0" width="42" height="20" rx="5" fill="#FFFFFF" stroke="#E6E2DD"/><text x="61" y="14" class="s" font-size="10" font-weight="600" fill="#B0AAA3" text-anchor="middle">Active</text>
       </g>
+      <!-- usage -->
+      <text x="18" y="76" class="s" font-size="11.5" fill="#8A837C">5-hour</text>
+      <text x="272" y="76" class="s" font-size="12" font-weight="700" fill="#1A1A19" text-anchor="end">24%</text>
+      <rect x="18" y="84" width="254" height="6" rx="3" fill="#EFEDE9"/>
+      <rect x="18" y="84" width="61" height="6" rx="3" fill="#2F7A5B"/>
     </g>
 
-    <!-- after: fresh account -->
-    <g transform="translate(24,206)">
-      <circle cx="15" cy="15" r="15" fill="#1D2A22"/>
-      <text x="15" y="20" class="h" font-size="13" font-weight="700" fill="#8FBFA6" text-anchor="middle">W</text>
-      <text x="42" y="14" class="h" font-size="13.5" font-weight="700" fill="#F0EAE5">work@example.com</text>
-      <text x="42" y="31" class="h" font-size="11.5" fill="#8A817A">MAX · fresh window</text>
-
-      <rect x="0" y="48" width="282" height="7" rx="3.5" fill="#241E1A"/>
-      <rect x="0" y="48" width="34" height="7" rx="3.5" fill="#2F7A5B"/>
-      <text x="0" y="76" class="h" font-size="12" fill="#B8AEA6">4% used</text>
-      <text x="282" y="76" class="h" font-size="12" font-weight="700" fill="#5FA37F" text-anchor="end">✓ keep going</text>
+    <!-- second account card -->
+    <g transform="translate(16,190)">
+      <rect width="290" height="106" rx="11" fill="#FFFFFF" stroke="#ECEAE6"/>
+      <circle cx="34" cy="30" r="16" fill="#F0EEEA"/>
+      <text x="34" y="35" class="s" font-size="14" font-weight="700" fill="#8A837C" text-anchor="middle">W</text>
+      <text x="60" y="27" class="s" font-size="13.5" font-weight="700" fill="#1A1A19">work@example.com</text>
+      <text x="60" y="44" class="s" font-size="11.5" fill="#8A837C">Ready</text>
+      <g transform="translate(198,18)">
+        <rect width="36" height="20" rx="5" fill="#F1EEEA"/><text x="18" y="14" class="s" font-size="10" font-weight="700" fill="#8A837C" text-anchor="middle">PRO</text>
+        <rect x="42" y="0" width="48" height="20" rx="5" fill="#C96442"/><text x="66" y="14" class="s" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle">Switch</text>
+      </g>
+      <text x="18" y="76" class="s" font-size="11.5" fill="#8A837C">5-hour</text>
+      <text x="272" y="76" class="s" font-size="12" font-weight="700" fill="#1A1A19" text-anchor="end">6%</text>
+      <rect x="18" y="84" width="254" height="6" rx="3" fill="#EFEDE9"/>
+      <rect x="18" y="84" width="15" height="6" rx="3" fill="#2F7A5B"/>
     </g>
   </g>
 </svg>
