@@ -1,0 +1,21 @@
+## Build output
+bin/
+obj/
+publish/
+*.user
+*.suo
+.vs/
+
+## Rider / VS Code
+.idea/
+.vscode/
+
+## Never commit anything resembling real credentials or captured account state.
+## The app stores these under %APPDATA%\ClaudeSwitch, but keep a guard here in case
+## someone copies them into the repo while debugging.
+*.credentials.json
+.credentials.json
+claude-config*.json
+errors.log
+browser-debug.log
+profiles/

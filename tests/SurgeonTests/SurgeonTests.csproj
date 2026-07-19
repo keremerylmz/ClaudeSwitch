@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>SurgeonTests</AssemblyName>
+    <RootNamespace>SurgeonTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      JsonSurgeon is deliberately free of WPF/WinForms dependencies so it can be exercised
+      from a plain console harness. Link the source rather than referencing the WPF project.
+    -->
+    <Compile Include="..\..\src\ClaudeSwitch\Core\JsonSurgeon.cs" Link="JsonSurgeon.cs" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>ClaudeSwitch</AssemblyName>
+    <RootNamespace>ClaudeSwitch</RootNamespace>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Version>0.1.0</Version>
+    <Product>ClaudeSwitch</Product>
+    <Description>One-click Claude Code account switcher for CLI and VS Code</Description>
+
+    <!-- Low memory footprint: workstation, non-concurrent GC -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <RetainVMGarbageCollection>false</RetainVMGarbageCollection>
+    <TieredCompilationQuickJitForLoops>true</TieredCompilationQuickJitForLoops>
+
+    <!--
+      InvariantGlobalization must stay OFF. It trims ~30MB of ICU data, but WPF's MenuItem
+      template resolves a non-neutral culture while loading and throws
+      "Cannot find non-neutral culture related to 'en-us'" — every context menu crashes.
+      Size is not worth a broken right-click menu.
+    -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <!-- Single-file publish knobs (used by build.ps1 / CI) -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- DPAPI: encrypts stored tokens at rest, bound to the current Windows user -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      UseWindowsForms swaps the default implicit-using set for a WinForms-specific one that
+      omits System.IO. This app is mostly file manipulation, so put it back.
+    -->
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+</Project>

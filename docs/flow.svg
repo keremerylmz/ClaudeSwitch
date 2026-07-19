@@ -1,0 +1,57 @@
+<svg width="860" height="220" viewBox="0 0 860 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="How switching works">
+  <style>
+    .box { fill: #FAFAF9; stroke: #E6E6E3; stroke-width: 1.5; }
+    .boxd { fill: #FBF0EC; stroke: #C96442; stroke-width: 1.5; }
+    .title { font-family: Segoe UI, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 700; fill: #1A1A19; }
+    .body { font-family: Segoe UI, Helvetica, Arial, sans-serif; font-size: 12px; fill: #6B655F; }
+    .num { font-family: Segoe UI, Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #C96442; }
+    .arrow { stroke: #C96442; stroke-width: 2; fill: none; }
+  </style>
+
+  <!-- 1 -->
+  <rect class="box" x="8" y="40" width="200" height="130" rx="12"/>
+  <circle cx="34" cy="66" r="11" fill="#FBF0EC"/>
+  <text x="30" y="70" class="num">1</text>
+  <text x="54" y="70" class="title">Save accounts</text>
+  <text x="24" y="102" class="body">Snapshot each logged-in</text>
+  <text x="24" y="120" class="body">account into an encrypted</text>
+  <text x="24" y="138" class="body">profile — once per account.</text>
+
+  <!-- arrow -->
+  <path class="arrow" d="M214 105 H250" marker-end="url(#a)"/>
+
+  <!-- 2 -->
+  <rect class="boxd" x="256" y="40" width="200" height="130" rx="12"/>
+  <circle cx="282" cy="66" r="11" fill="#FFFFFF"/>
+  <text x="278" y="70" class="num">2</text>
+  <text x="302" y="70" class="title">One-click switch</text>
+  <text x="272" y="102" class="body">Tray menu or window.</text>
+  <text x="272" y="120" class="body">Writes the tokens back —</text>
+  <text x="272" y="138" class="body">CLI + VS Code, together.</text>
+
+  <!-- arrow -->
+  <path class="arrow" d="M462 105 H498" marker-end="url(#a)"/>
+
+  <!-- 3 -->
+  <rect class="boxd" x="504" y="40" width="200" height="130" rx="12"/>
+  <circle cx="530" cy="66" r="11" fill="#FFFFFF"/>
+  <text x="526" y="70" class="num">3</text>
+  <text x="550" y="70" class="title">Just say continue</text>
+  <text x="520" y="102" class="body">Switch and type &quot;continue&quot; —</text>
+  <text x="520" y="120" class="body">you're back in the same chat.</text>
+  <text x="520" y="138" class="body">--continue works too.</text>
+
+  <!-- callout -->
+  <rect x="712" y="40" width="140" height="130" rx="12" fill="#26211E"/>
+  <text x="732" y="72" font-family="Segoe UI" font-size="12" font-weight="700" fill="#D97757">The point</text>
+  <text x="732" y="98" font-family="Segoe UI" font-size="11" fill="#CFC7BF">Hit your limit</text>
+  <text x="732" y="114" font-family="Segoe UI" font-size="11" fill="#CFC7BF">mid-task? Switch</text>
+  <text x="732" y="130" font-family="Segoe UI" font-size="11" fill="#CFC7BF">and flow right</text>
+  <text x="732" y="146" font-family="Segoe UI" font-size="11" fill="#CFC7BF">on.</text>
+
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0 0 L6 3 L0 6 Z" fill="#C96442"/>
+    </marker>
+  </defs>
+</svg>

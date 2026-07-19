@@ -1,0 +1,254 @@
+<Window x:Class="ClaudeSwitch.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ClaudeSwitch"
+        Height="600" Width="440"
+        MinHeight="480" MinWidth="400"
+        Background="{StaticResource Bg}"
+        FontFamily="{StaticResource UiFont}"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <Grid Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ── Header ───────────────────────────────────────────── -->
+        <Border Grid.Row="0" Background="{StaticResource Surface}"
+                BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1"
+                Padding="20,18,20,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="ClaudeSwitch" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{StaticResource Text}"/>
+                    <TextBlock x:Name="ActiveAccountText" Margin="0,3,0,0"
+                               FontSize="12" Foreground="{StaticResource TextMuted}"
+                               TextTrimming="CharacterEllipsis"
+                               Text="Loading…"/>
+                </StackPanel>
+
+                <Button Grid.Column="1" x:Name="RefreshButton" Style="{StaticResource IconButton}"
+                        Content="⟳" FontSize="16" ToolTip="Refresh" Click="RefreshButton_Click"
+                        VerticalAlignment="Top"/>
+            </Grid>
+        </Border>
+
+        <!-- ── Account list ─────────────────────────────────────── -->
+        <ScrollViewer Grid.Row="1" Style="{StaticResource ListScroll}" Padding="16,14,16,4">
+            <StackPanel>
+
+                <ItemsControl x:Name="AccountList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border x:Name="Card" Background="{StaticResource Bg}"
+                                    BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                    CornerRadius="9" Padding="12,11" Margin="0,0,0,8">
+                              <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Avatar -->
+                                    <Border Grid.Column="0" Width="34" Height="34" CornerRadius="17"
+                                            Background="{StaticResource AccentSoft}"
+                                            BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                            VerticalAlignment="Center" Margin="0,0,11,0">
+                                        <TextBlock Text="{Binding Initial}" FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Accent}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- Name + meta -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DisplayName}" FontSize="13.5" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Text}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Subtitle}" FontSize="11.5" Margin="0,2,0,0"
+                                                   Foreground="{StaticResource TextMuted}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+
+                                    <!-- Plan badge -->
+                                    <Border Grid.Column="2" VerticalAlignment="Center" Margin="8,0,4,0"
+                                            Background="{StaticResource SurfaceHi}" CornerRadius="5"
+                                            Padding="7,3">
+                                        <TextBlock Text="{Binding PlanBadge}" FontSize="10" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextMuted}"/>
+                                    </Border>
+
+                                    <!-- Actions -->
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button x:Name="UseButton" Style="{StaticResource GhostButton}"
+                                                Content="Switch" Padding="12,6" FontSize="12"
+                                                Tag="{Binding}" Click="UseButton_Click"/>
+                                        <Button Style="{StaticResource IconButton}" Content="⋯"
+                                                Margin="4,0,0,0" ToolTip="More"
+                                                Tag="{Binding}" Click="MoreButton_Click"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Real subscription usage from /api/oauth/usage — the same
+                                     source as Claude Code's /usage command. -->
+                                <Border Margin="0,11,0,0" Padding="11,10" CornerRadius="6"
+                                        Background="{StaticResource Surface}"
+                                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                        ToolTip="{Binding UsageTooltip}">
+                                    <StackPanel>
+                                        <!-- 5-hour window -->
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="5-hour" FontSize="11"
+                                                       Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding FiveHourText}" FontSize="12"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource Text}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <Border Height="6" Margin="0,5,0,0" CornerRadius="3"
+                                                Background="{StaticResource SurfaceHi}" ClipToBounds="True">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="{Binding FiveHourStar}"/>
+                                                    <ColumnDefinition Width="{Binding FiveHourRestStar}"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" CornerRadius="3"
+                                                        Background="{Binding FiveHourBrush}"/>
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock Text="{Binding FiveHourReset}" FontSize="10" Margin="0,3,0,0"
+                                                   Foreground="{StaticResource TextMuted}"/>
+
+                                        <!-- 7-day window -->
+                                        <Grid Margin="0,10,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="7-day" FontSize="11"
+                                                       Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding SevenDayText}" FontSize="12"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource Text}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <Border Height="6" Margin="0,5,0,0" CornerRadius="3"
+                                                Background="{StaticResource SurfaceHi}" ClipToBounds="True">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="{Binding SevenDayStar}"/>
+                                                    <ColumnDefinition Width="{Binding SevenDayRestStar}"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" CornerRadius="3"
+                                                        Background="{Binding SevenDayBrush}"/>
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock Text="{Binding SevenDayReset}" FontSize="10" Margin="0,3,0,0"
+                                                   Foreground="{StaticResource TextMuted}"/>
+
+                                        <TextBlock Text="{Binding UsageAsOf}" FontSize="10" Margin="0,8,0,0"
+                                                   Foreground="{StaticResource TextMuted}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Border>
+                              </StackPanel>
+                            </Border>
+
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                    <Setter TargetName="Card" Property="Background" Value="{StaticResource AccentSoft}"/>
+                                    <Setter TargetName="Card" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                    <Setter TargetName="UseButton" Property="Content" Value="Active"/>
+                                    <Setter TargetName="UseButton" Property="IsEnabled" Value="False"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Empty state -->
+                <Border x:Name="EmptyState" Visibility="Collapsed"
+                        Background="{StaticResource Surface}" CornerRadius="9"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        Padding="20,28" Margin="0,8,0,0">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="No saved accounts yet" FontSize="13.5" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Text}" HorizontalAlignment="Center"/>
+                        <TextBlock Margin="0,6,0,0" FontSize="12" TextAlignment="Center" TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextMuted}"
+                                   Text="To save the account you're currently signed into,&#10;click &quot;Save current account&quot;."/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ── Footer ───────────────────────────────────────────── -->
+        <Border Grid.Row="2" Background="{StaticResource Surface}"
+                BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0"
+                Padding="16,12">
+            <StackPanel>
+                <TextBlock x:Name="StatusText" FontSize="11.5" Margin="2,0,2,10"
+                           Foreground="{StaticResource TextMuted}"
+                           TextWrapping="Wrap" Visibility="Collapsed"/>
+
+                <!-- Inline authorization-code entry. Shown only when the CLI asks for a code.
+                     Deliberately embedded rather than a modal dialog: a dialog stole focus from
+                     the browser and pulled the whole app in front of it. -->
+                <Border x:Name="CodePanel" Visibility="Collapsed" Margin="0,0,0,10"
+                        Background="{StaticResource AccentSoft}" CornerRadius="7"
+                        BorderBrush="{StaticResource Accent}" BorderThickness="1" Padding="12,10">
+                    <StackPanel>
+                        <TextBlock Text="Paste the authorization code" FontSize="12.5"
+                                   FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                        <TextBlock Margin="0,4,0,0" FontSize="11.5" TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextMuted}"
+                                   Text="After clicking &quot;Authorize&quot; in the browser, paste the code (or link) shown on the page here. This is NOT the 6-digit code sent to your e-mail."/>
+                        <Grid Margin="0,9,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="CodeBox" Grid.Column="0" Padding="8,7" FontSize="13"
+                                     Foreground="{StaticResource Text}" Background="{StaticResource Bg}"
+                                     BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                     KeyDown="CodeBox_KeyDown"/>
+                            <Button x:Name="SubmitCodeButton" Grid.Column="1" Margin="6,0,0,0"
+                                    Style="{StaticResource PrimaryButton}" Content="Submit"
+                                    Padding="14,7" Click="SubmitCodeButton_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" x:Name="SaveCurrentButton" Style="{StaticResource GhostButton}"
+                            Content="Save current account" Click="SaveCurrentButton_Click"/>
+                    <Button Grid.Column="2" x:Name="AddAccountButton" Style="{StaticResource PrimaryButton}"
+                            Content="+ Add Account" Click="AddAccountButton_Click"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
