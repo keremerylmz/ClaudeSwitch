@@ -53,14 +53,32 @@ internal static class UsageApi
         return client;
     }
 
+    /// <summary>Why a usage fetch didn't produce data — 401 means something quite different from a timeout.</summary>
+    internal enum FetchStatus
+    {
+        Ok,
+        /// <summary>The token was rejected. The account genuinely needs signing in again.</summary>
+        Unauthorized,
+        /// <summary>Rate-limited, offline, or an unexpected response. Says nothing about the token.</summary>
+        Unavailable,
+    }
+
     /// <summary>
     /// Fetches usage for the account holding <paramref name="accessToken"/>.
     /// Returns null on any failure — expired token (401), rate limit (429), network error, or
     /// an unexpected response shape.
     /// </summary>
     public static async Task<UsageSnapshot?> FetchAsync(string accessToken, CancellationToken token = default)
+        => (await FetchWithStatusAsync(accessToken, token)).Snapshot;
+
+    /// <summary>
+    /// Same as <see cref="FetchAsync"/> but distinguishes a rejected token from a temporary
+    /// failure — the difference between "re-add this account" and "try again in a minute".
+    /// </summary>
+    public static async Task<(UsageSnapshot? Snapshot, FetchStatus Status)> FetchWithStatusAsync(
+        string accessToken, CancellationToken token = default)
     {
-        if (string.IsNullOrWhiteSpace(accessToken)) return null;
+        if (string.IsNullOrWhiteSpace(accessToken)) return (null, FetchStatus.Unauthorized);
 
         try
         {
@@ -68,16 +86,19 @@ internal static class UsageApi
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             using var response = await Http.SendAsync(request, token);
-            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.TooManyRequests)
-                return null;
-            if (!response.IsSuccessStatusCode) return null;
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+                return (null, FetchStatus.Unauthorized);
+            if (!response.IsSuccessStatusCode)
+                return (null, FetchStatus.Unavailable);
 
             var json = await response.Content.ReadAsStringAsync(token);
-            return Parse(json);
+            var parsed = Parse(json);
+            return (parsed, parsed is null ? FetchStatus.Unavailable : FetchStatus.Ok);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return null;
+            return (null, FetchStatus.Unavailable);
         }
     }
 

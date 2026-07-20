@@ -66,7 +66,11 @@ public partial class MainWindow : Window
             _items.Add(new AccountItem(p)
             {
                 IsActive = !string.IsNullOrEmpty(activeUuid)
-                           && string.Equals(p.AccountUuid, activeUuid, StringComparison.OrdinalIgnoreCase)
+                           && string.Equals(p.AccountUuid, activeUuid, StringComparison.OrdinalIgnoreCase),
+
+                // Flagged up front so a dead profile is visible before it's switched into,
+                // instead of surfacing as Claude Code's sign-in screen afterwards.
+                NeedsReauth = !IsProfileUsable(p),
             });
         }
 
@@ -140,6 +144,19 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Local-only health check on a profile's stored credentials. Never throws.</summary>
+    private bool IsProfileUsable(Profile profile)
+    {
+        try
+        {
+            return AccountSwitcher.CredentialsUsable(_store.LoadSecret(profile.Id).CredentialsJson);
+        }
+        catch (Exception)
+        {
+            return false;   // unreadable secret is, for the user's purposes, a dead profile
+        }
+    }
+
     private static string? CurrentAccountUuid()
     {
         try
@@ -159,11 +176,52 @@ public partial class MainWindow : Window
 
     // ── switching ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Copies the live credentials back into whichever saved profile they belong to.
+    ///
+    /// This is not optional bookkeeping — it is what keeps switching working at all. OAuth
+    /// refresh tokens ROTATE: while you use an account, Claude Code silently refreshes and
+    /// writes a new refreshToken to disk. The copy in our profile then becomes stale, and
+    /// restoring that stale token later makes the refresh fail — which is exactly what showed
+    /// up as "VS Code signed me out and asked me to Authorize again" after switching back.
+    ///
+    /// Run immediately before every switch so the outgoing account is stored at its newest state.
+    /// </summary>
+    private void SyncActiveProfileTokens()
+    {
+        try
+        {
+            var captured = _switcher.CaptureCurrent();
+            if (captured is null) return;
+
+            var (fresh, secret) = captured.Value;
+            if (string.IsNullOrEmpty(fresh.AccountUuid)) return;
+
+            var stored = _store.LoadAll().FirstOrDefault(p =>
+                string.Equals(p.AccountUuid, fresh.AccountUuid, StringComparison.OrdinalIgnoreCase));
+
+            if (stored is null) return;   // active account isn't saved as a profile; nothing to update
+
+            // Keep the user's own fields; refresh only what the credentials actually carry.
+            stored.ExpiresAt = fresh.ExpiresAt;
+            stored.SubscriptionType = fresh.SubscriptionType;
+            _store.Save(stored, secret);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            // A failed sync must not block the switch the user asked for.
+        }
+    }
+
     /// <summary>Applies a profile. Shared by the window buttons and the tray menu.</summary>
     internal void SwitchTo(Profile profile)
     {
         try
         {
+            // Save the outgoing account's newest tokens BEFORE overwriting the live files,
+            // otherwise its stored refresh token goes stale and it can't be switched back to.
+            SyncActiveProfileTokens();
+
             var secret = _store.LoadSecret(profile.Id);
             _switcher.Apply(profile, secret);
 
@@ -177,11 +235,37 @@ public partial class MainWindow : Window
             const string note = "Just keep going in your open sessions.";
             ShowStatus($"Switched to {profile.DisplayName}. {note}");
             App.Tray?.Notify("Account switched", $"{profile.DisplayName}\n{note}");
+
+            _ = VerifySwitchedTokenAsync(profile, secret);
         }
         catch (Exception ex)
         {
             ShowError("Switch failed", ex);
         }
+    }
+
+    /// <summary>
+    /// Checks that the tokens we just restored are actually accepted, and says so plainly if
+    /// they are not.
+    ///
+    /// Without this the failure is silent and baffling: the switch "succeeds", then Claude Code
+    /// quietly drops you on its sign-in screen. A rejected token means the saved copy went stale
+    /// (refresh tokens rotate) and the account has to be added again — worth stating outright
+    /// rather than leaving the user to guess.
+    /// </summary>
+    private async Task VerifySwitchedTokenAsync(Profile profile, ProfileSecret secret)
+    {
+        var token = UsageApi.ExtractAccessToken(secret.CredentialsJson);
+        if (token is null) return;
+
+        var (_, status) = await UsageApi.FetchWithStatusAsync(token);
+        if (status != UsageApi.FetchStatus.Unauthorized) return;   // fine, or merely offline
+
+        ShowStatus($"⚠ {profile.DisplayName}: the saved sign-in is no longer valid. " +
+                   "Use \"+ Add Account\" to sign into it once more — after that it will keep working.");
+
+        App.Tray?.Notify("Re-sign-in needed",
+            $"{profile.DisplayName}'s saved sign-in expired. Add the account again.");
     }
 
     private void UseButton_Click(object sender, RoutedEventArgs e)
@@ -352,6 +436,20 @@ public partial class MainWindow : Window
 
             if (_switcher.CaptureFromConfigDir(_loginConfigDir) is { } captured)
             {
+                // Don't trust the files alone — prove the token works before saving it. A
+                // credential set that looks complete but is rejected means the login is still
+                // settling, and storing it would produce a profile that silently fails later.
+                var accessToken = UsageApi.ExtractAccessToken(captured.Secret.CredentialsJson);
+                if (accessToken is not null)
+                {
+                    var (_, status) = await UsageApi.FetchWithStatusAsync(accessToken, token);
+                    if (status == UsageApi.FetchStatus.Unauthorized)
+                    {
+                        ShowStatus("Finishing sign-in…");
+                        continue;   // keep polling; the CLI hasn't finished yet
+                    }
+                }
+
                 SaveAddedAccount(captured.Profile, captured.Secret);
                 return;
             }
@@ -552,10 +650,16 @@ internal sealed class AccountItem : INotifyPropertyChanged
     public string Initial => Profile.Initial;
     public string PlanBadge => Profile.PlanBadge;
 
+    /// <summary>Stored credentials are unusable — the account has to be added again.</summary>
+    public bool NeedsReauth { get; init; }
+
     public string Subtitle
     {
         get
         {
+            // The most important thing to say about this account, so it replaces the usual detail.
+            if (NeedsReauth) return "⚠ Sign-in expired — use \"+ Add Account\" to fix";
+
             var parts = new List<string>();
             if (!string.IsNullOrWhiteSpace(Profile.Email) && Profile.Email != DisplayName)
                 parts.Add(Profile.Email);

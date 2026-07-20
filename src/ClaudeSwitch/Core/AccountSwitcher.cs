@@ -52,12 +52,82 @@ internal sealed class AccountSwitcher
         return CaptureFrom(credentials, config);
     }
 
+    /// <summary>
+    /// True when a credentials file holds a usable, fully-written token set.
+    ///
+    /// This guard exists because of a real failure: during login, Claude Code writes
+    /// oauthAccount into .claude.json before .credentials.json has finished being written.
+    /// Capturing on the oauthAccount signal alone stored a half-written credential set — one
+    /// observed profile ended up with no expiresAt at all and a token the server rejected, so
+    /// switching to it dropped the user on the sign-in screen. Requiring every field to be
+    /// present means we simply keep waiting until the login has really finished.
+    /// </summary>
+    /// <summary>
+    /// Whether a stored credential set can still be restored: fully written, and with a refresh
+    /// token that has not expired. Purely local — no network call — so it is cheap enough to run
+    /// for every profile on each refresh, and lets the UI flag a dead profile BEFORE the user
+    /// switches into it.
+    /// </summary>
+    public static bool CredentialsUsable(string credentialsJson)
+    {
+        if (!LooksComplete(credentialsJson)) return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(credentialsJson);
+            if (!doc.RootElement.TryGetProperty("claudeAiOauth", out var oauth)) return false;
+
+            // An expired ACCESS token is fine — Claude Code refreshes it. An expired REFRESH
+            // token is not: nothing can revive it and the account must be added again.
+            if (oauth.TryGetProperty("refreshTokenExpiresAt", out var r) && r.TryGetInt64(out var ms))
+                return ms <= 0 || ms > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+            return true;   // field absent: assume usable rather than nag wrongly
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool LooksComplete(string credentialsJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(credentialsJson);
+            if (!doc.RootElement.TryGetProperty("claudeAiOauth", out var oauth)) return false;
+
+            var hasAccess = oauth.TryGetProperty("accessToken", out var a) &&
+                            !string.IsNullOrWhiteSpace(a.GetString());
+            var hasRefresh = oauth.TryGetProperty("refreshToken", out var r) &&
+                             !string.IsNullOrWhiteSpace(r.GetString());
+            var hasExpiry = oauth.TryGetProperty("expiresAt", out var e) &&
+                            e.TryGetInt64(out var ms) && ms > 0;
+
+            return hasAccess && hasRefresh && hasExpiry;
+        }
+        catch (JsonException)
+        {
+            return false;   // still mid-write
+        }
+    }
+
     private (Profile Profile, ProfileSecret Secret)? CaptureFrom(string credentialsFile, string configFile)
     {
         if (!File.Exists(credentialsFile) || !File.Exists(configFile)) return null;
 
-        var credentialsJson = File.ReadAllText(credentialsFile);
-        var configJson = File.ReadAllText(configFile);
+        string credentialsJson, configJson;
+        try
+        {
+            credentialsJson = File.ReadAllText(credentialsFile);
+            configJson = File.ReadAllText(configFile);
+        }
+        catch (IOException)
+        {
+            return null;   // being written right now; try again on the next poll
+        }
+
+        if (!LooksComplete(credentialsJson)) return null;
 
         var oauthAccountRaw = JsonSurgeon.GetRawValue(configJson, "oauthAccount");
         if (string.IsNullOrWhiteSpace(oauthAccountRaw)) return null;
