@@ -15,6 +15,9 @@ public partial class App : Application
     /// <summary>Not named "Main" — that collides with the generated WPF entry point.</summary>
     internal static MainWindow? MainView { get; private set; }
 
+    /// <summary>App-wide preferences (theme, compact, language). Loaded once at startup.</summary>
+    internal static AppSettings Settings { get; private set; } = new();
+
     protected override void OnStartup(StartupEventArgs e)
     {
         // A second instance could race the first one writing credentials — allow only one.
@@ -29,9 +32,8 @@ public partial class App : Application
 
         base.OnStartup(e);
 
-        // The UI is English-only, so dates and numbers must be too — otherwise a Turkish or
-        // German Windows renders "26 Tem 08:59" next to English labels. Set before any UI is
-        // built so every binding formats consistently.
+        // Dates and numbers are formatted with a fixed en-US culture regardless of the chosen
+        // interface language — keeps "26 Jul 08:59" stable rather than following the OS locale.
         var ui = System.Globalization.CultureInfo.GetCultureInfo("en-US");
         System.Globalization.CultureInfo.DefaultThreadCurrentCulture = ui;
         System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = ui;
@@ -76,6 +78,12 @@ public partial class App : Application
 
         ClaudePaths.EnsureAppDirectories();
 
+        // Apply saved preferences BEFORE any window is built, so the first paint is already in
+        // the right theme and language (no flash of the default light/English UI).
+        Settings = AppSettings.Load();
+        Loc.Current = Settings.Language;
+        ThemeManager.Apply(Settings.DarkMode);
+
         // Temp browser profiles from previous logins are still locked when a login finishes,
         // so they get cleared here instead.
         PrivateBrowser.SweepOldProfiles();
@@ -100,6 +108,18 @@ public partial class App : Application
         if (MainView.WindowState == WindowState.Minimized) MainView.WindowState = WindowState.Normal;
         MainView.Activate();
         MainView.Refresh();
+    }
+
+    /// <summary>Opens the preferences window, wired to re-render the main window on change.</summary>
+    internal static void OpenSettings()
+    {
+        if (MainView is null) return;
+
+        var existing = Current.Windows.OfType<SettingsWindow>().FirstOrDefault();
+        if (existing is not null) { existing.Activate(); return; }
+
+        var settings = new SettingsWindow(Settings, () => MainView?.Refresh()) { Owner = MainView };
+        settings.Show();
     }
 
     internal static void RequestShutdown()

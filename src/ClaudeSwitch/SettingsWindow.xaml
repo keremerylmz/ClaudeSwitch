@@ -1,0 +1,91 @@
+<Window x:Class="ClaudeSwitch.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="400" SizeToContent="Height"
+        Background="{DynamicResource Bg}"
+        FontFamily="{StaticResource UiFont}"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
+
+    <Border Background="{DynamicResource Bg}">
+        <StackPanel>
+
+            <!-- Header -->
+            <Border Background="{DynamicResource Surface}"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
+                    Padding="20,15">
+                <TextBlock x:Name="TitleText" Text="Settings" VerticalAlignment="Center"
+                           FontSize="{StaticResource FontTitle}" FontWeight="SemiBold"
+                           Foreground="{DynamicResource Text}"/>
+            </Border>
+
+            <StackPanel Margin="20,18,20,20">
+
+                <!-- Appearance -->
+                <TextBlock x:Name="AppearanceHeader" Text="APPEARANCE"
+                           FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMuted}" Margin="2,0,0,10"/>
+
+                <Border Background="{DynamicResource Surface}" CornerRadius="10"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="14,4">
+                    <StackPanel>
+                        <Grid Height="52">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="DarkTitle" Text="Dark mode"
+                                           FontSize="{StaticResource FontStrong}"
+                                           Foreground="{DynamicResource Text}"/>
+                                <TextBlock x:Name="DarkDesc" Text="Use a dark color theme."
+                                           FontSize="{StaticResource FontSmall}" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource TextMuted}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="DarkToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="DarkToggle_Changed" Unchecked="DarkToggle_Changed"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="52">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="CompactTitle" Text="Compact mode"
+                                           FontSize="{StaticResource FontStrong}"
+                                           Foreground="{DynamicResource Text}"/>
+                                <TextBlock x:Name="CompactDesc" Text="Hide usage details for a denser list."
+                                           FontSize="{StaticResource FontSmall}" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource TextMuted}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="CompactToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="CompactToggle_Changed" Unchecked="CompactToggle_Changed"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Language -->
+                <TextBlock x:Name="LanguageHeader" Text="LANGUAGE"
+                           FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMuted}" Margin="2,20,0,10"/>
+
+                <Border Background="{DynamicResource Surface}" CornerRadius="10"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="8">
+                    <ItemsControl x:Name="LanguageList">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </Border>
+
+                <Button x:Name="DoneButton" Style="{StaticResource PrimaryButton}" Content="Done"
+                        HorizontalAlignment="Right" Margin="0,20,0,0" Padding="22,9"
+                        Click="Close_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

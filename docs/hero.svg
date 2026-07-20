@@ -57,51 +57,62 @@
   <!-- small meta line -->
   <text x="61" y="392" class="s" font-size="12.5" fill="#6E665F">Free · open source · MIT · Windows</text>
 
-  <!-- ── right: the real app window, floating ───────────── -->
-  <g transform="translate(628,54)" filter="url(#shadow)">
-    <rect width="322" height="322" rx="15" fill="#FFFFFF"/>
+  <!-- ── right: the real app window, floating (new UI) ───── -->
+  <g transform="translate(628,40)" filter="url(#shadow)">
+    <rect width="322" height="350" rx="15" fill="#FFFFFF"/>
 
     <!-- header -->
-    <rect width="322" height="58" rx="15" fill="#FAFAF9"/>
-    <rect y="43" width="322" height="15" fill="#FAFAF9"/>
-    <rect y="57" width="322" height="1" fill="#ECEAE6"/>
-    <rect x="18" y="20" width="18" height="18" rx="5" fill="url(#tile)"/>
-    <text x="44" y="34" class="s" font-size="13" font-weight="700" fill="#1A1A19">ClaudeSwitch</text>
-    <text x="304" y="34" class="s" font-size="14" fill="#A8A29B" text-anchor="end">⟳</text>
+    <rect width="322" height="60" rx="15" fill="#FAFAF9"/>
+    <rect y="45" width="322" height="15" fill="#FAFAF9"/>
+    <rect y="59" width="322" height="1" fill="#E9E7E3"/>
+    <rect x="18" y="15" width="18" height="18" rx="5" fill="url(#tile)"/>
+    <text x="44" y="29" class="s" font-size="13.5" font-weight="700" fill="#191918">ClaudeSwitch</text>
+    <text x="44" y="45" class="s" font-size="10.5" fill="#8A867E">Active: you@example.com</text>
+    <text x="286" y="34" class="s" font-size="13" fill="#A8A29B" text-anchor="middle">⟳</text>
+    <text x="306" y="34" class="s" font-size="13" fill="#A8A29B" text-anchor="middle">⚙</text>
 
     <!-- active account card -->
-    <g transform="translate(16,74)">
-      <rect width="290" height="106" rx="11" fill="#FBF0EC" stroke="#D97757" stroke-width="1.2"/>
-      <circle cx="34" cy="30" r="16" fill="#F6E0D8"/>
-      <text x="34" y="35" class="s" font-size="14" font-weight="700" fill="#C96442" text-anchor="middle">Y</text>
-      <text x="60" y="27" class="s" font-size="13.5" font-weight="700" fill="#1A1A19">you@example.com</text>
-      <text x="60" y="44" class="s" font-size="11.5" fill="#8A837C">Ready</text>
-      <g transform="translate(206,18)">
-        <rect width="34" height="20" rx="5" fill="#F1EEEA"/><text x="17" y="14" class="s" font-size="10" font-weight="700" fill="#8A837C" text-anchor="middle">MAX</text>
-        <rect x="40" y="0" width="42" height="20" rx="5" fill="#FFFFFF" stroke="#E6E2DD"/><text x="61" y="14" class="s" font-size="10" font-weight="600" fill="#B0AAA3" text-anchor="middle">Active</text>
+    <g transform="translate(14,72)">
+      <rect width="294" height="126" rx="11" fill="#FCF3EF" stroke="#EFCDBE" stroke-width="1.2"/>
+      <circle cx="33" cy="28" r="16" fill="#C96442"/>
+      <text x="33" y="33" class="s" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">Y</text>
+      <text x="58" y="25" class="s" font-size="13" font-weight="700" fill="#191918">you@example.com</text>
+      <text x="58" y="41" class="s" font-size="11" fill="#8A867E">Ready</text>
+      <g transform="translate(202,17)">
+        <rect width="34" height="19" rx="5" fill="#F4F3F1"/><text x="17" y="13" class="s" font-size="9.5" font-weight="700" fill="#8A867E" text-anchor="middle">MAX</text>
+        <rect x="40" y="0" width="42" height="19" rx="5" fill="#FFFFFF" stroke="#E6E2DD"/><text x="61" y="13" class="s" font-size="9.5" font-weight="600" fill="#B0AAA3" text-anchor="middle">Active</text>
       </g>
-      <!-- usage -->
-      <text x="18" y="76" class="s" font-size="11.5" fill="#8A837C">5-hour</text>
-      <text x="272" y="76" class="s" font-size="12" font-weight="700" fill="#1A1A19" text-anchor="end">24%</text>
-      <rect x="18" y="84" width="254" height="6" rx="3" fill="#EFEDE9"/>
-      <rect x="18" y="84" width="61" height="6" rx="3" fill="#2F7A5B"/>
+      <!-- 5-hour -->
+      <text x="16" y="66" class="s" font-size="10.5" fill="#8A867E">5-hour</text>
+      <text x="278" y="66" class="s" font-size="11.5" font-weight="700" fill="#191918" text-anchor="end">24%</text>
+      <rect x="16" y="72" width="262" height="5" rx="2.5" fill="#F0EDE9"/>
+      <rect x="16" y="72" width="63" height="5" rx="2.5" fill="#2F7A5B"/>
+      <!-- 7-day -->
+      <text x="16" y="98" class="s" font-size="10.5" fill="#8A867E">7-day</text>
+      <text x="278" y="98" class="s" font-size="11.5" font-weight="700" fill="#191918" text-anchor="end">4%</text>
+      <rect x="16" y="104" width="262" height="5" rx="2.5" fill="#F0EDE9"/>
+      <rect x="16" y="104" width="12" height="5" rx="2.5" fill="#2F7A5B"/>
     </g>
 
     <!-- second account card -->
-    <g transform="translate(16,190)">
-      <rect width="290" height="106" rx="11" fill="#FFFFFF" stroke="#ECEAE6"/>
-      <circle cx="34" cy="30" r="16" fill="#F0EEEA"/>
-      <text x="34" y="35" class="s" font-size="14" font-weight="700" fill="#8A837C" text-anchor="middle">W</text>
-      <text x="60" y="27" class="s" font-size="13.5" font-weight="700" fill="#1A1A19">work@example.com</text>
-      <text x="60" y="44" class="s" font-size="11.5" fill="#8A837C">Ready</text>
-      <g transform="translate(198,18)">
-        <rect width="36" height="20" rx="5" fill="#F1EEEA"/><text x="18" y="14" class="s" font-size="10" font-weight="700" fill="#8A837C" text-anchor="middle">PRO</text>
-        <rect x="42" y="0" width="48" height="20" rx="5" fill="#C96442"/><text x="66" y="14" class="s" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle">Switch</text>
+    <g transform="translate(14,206)">
+      <rect width="294" height="126" rx="11" fill="#FFFFFF" stroke="#E9E7E3"/>
+      <circle cx="33" cy="28" r="16" fill="#F0EEEA"/>
+      <text x="33" y="33" class="s" font-size="14" font-weight="700" fill="#8A867E" text-anchor="middle">W</text>
+      <text x="58" y="25" class="s" font-size="13" font-weight="700" fill="#191918">work@example.com</text>
+      <text x="58" y="41" class="s" font-size="11" fill="#8A867E">Ready</text>
+      <g transform="translate(196,17)">
+        <rect width="36" height="19" rx="5" fill="#F4F3F1"/><text x="18" y="13" class="s" font-size="9.5" font-weight="700" fill="#8A867E" text-anchor="middle">PRO</text>
+        <rect x="42" y="0" width="46" height="19" rx="5" fill="#C96442"/><text x="65" y="13" class="s" font-size="9.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">Switch</text>
       </g>
-      <text x="18" y="76" class="s" font-size="11.5" fill="#8A837C">5-hour</text>
-      <text x="272" y="76" class="s" font-size="12" font-weight="700" fill="#1A1A19" text-anchor="end">6%</text>
-      <rect x="18" y="84" width="254" height="6" rx="3" fill="#EFEDE9"/>
-      <rect x="18" y="84" width="15" height="6" rx="3" fill="#2F7A5B"/>
+      <text x="16" y="66" class="s" font-size="10.5" fill="#8A867E">5-hour</text>
+      <text x="278" y="66" class="s" font-size="11.5" font-weight="700" fill="#191918" text-anchor="end">6%</text>
+      <rect x="16" y="72" width="262" height="5" rx="2.5" fill="#F0EDE9"/>
+      <rect x="16" y="72" width="16" height="5" rx="2.5" fill="#2F7A5B"/>
+      <text x="16" y="98" class="s" font-size="10.5" fill="#8A867E">7-day</text>
+      <text x="278" y="98" class="s" font-size="11.5" font-weight="700" fill="#191918" text-anchor="end">100%</text>
+      <rect x="16" y="104" width="262" height="5" rx="2.5" fill="#F0EDE9"/>
+      <rect x="16" y="104" width="262" height="5" rx="2.5" fill="#B4443A"/>
     </g>
   </g>
 </svg>

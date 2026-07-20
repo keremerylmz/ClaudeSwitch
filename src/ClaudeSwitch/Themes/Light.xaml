@@ -1,0 +1,31 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Light theme — warm neutrals, single terracotta accent. -->
+    <SolidColorBrush x:Key="Bg"             Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Surface"        Color="#FAFAF9"/>
+    <SolidColorBrush x:Key="SurfaceHi"      Color="#F4F3F1"/>
+    <SolidColorBrush x:Key="Border"         Color="#E9E7E3"/>
+    <SolidColorBrush x:Key="BorderStrong"   Color="#D9D6D0"/>
+
+    <SolidColorBrush x:Key="Text"           Color="#191918"/>
+    <SolidColorBrush x:Key="TextSecondary"  Color="#57544E"/>
+    <SolidColorBrush x:Key="TextMuted"      Color="#8A867E"/>
+
+    <SolidColorBrush x:Key="Accent"         Color="#C96442"/>
+    <SolidColorBrush x:Key="AccentHover"    Color="#B4552F"/>
+    <SolidColorBrush x:Key="AccentPressed"  Color="#9C4726"/>
+    <SolidColorBrush x:Key="AccentSoft"     Color="#FCF3EF"/>
+    <SolidColorBrush x:Key="AccentBorder"   Color="#EFCDBE"/>
+
+    <SolidColorBrush x:Key="Success"        Color="#2F7A5B"/>
+    <SolidColorBrush x:Key="Warning"        Color="#B7761F"/>
+    <SolidColorBrush x:Key="Danger"         Color="#B4443A"/>
+
+    <SolidColorBrush x:Key="ScrollThumb"      Color="#CFCBC4"/>
+    <SolidColorBrush x:Key="ScrollThumbHover" Color="#AFAAA1"/>
+
+    <SolidColorBrush x:Key="TooltipBg"      Color="#26231F"/>
+    <SolidColorBrush x:Key="TooltipText"    Color="#F5F4F2"/>
+
+</ResourceDictionary>

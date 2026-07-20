@@ -36,7 +36,32 @@ public partial class MainWindow : Window
         InitializeComponent();
         AccountList.ItemsSource = _items;
         Loaded += (_, _) => Refresh();
+
+        // A language change re-reads every string. Item-template text refreshes when the list
+        // is rebuilt; the static chrome is re-set here.
+        Loc.Changed += Relocalize;
+        Closed += (_, _) => Loc.Changed -= Relocalize;
+
+        // Tint the native title bar once the window has a handle.
+        SourceInitialized += (_, _) => WindowChrome.Apply(this, ThemeManager.IsDark);
     }
+
+    /// <summary>Re-applies the current language to the static chrome, then rebuilds the list.</summary>
+    private void Relocalize()
+    {
+        EmptyTitle.Text = Loc.T("empty.title");
+        EmptyBody.Text = Loc.T("empty.body");
+        SaveCurrentButton.Content = Loc.T("footer.saveCurrent");
+        CodeTitle.Text = Loc.T("code.title");
+        CodeBody.Text = Loc.T("code.body");
+        SubmitCodeButton.Content = Loc.T("code.submit");
+        RefreshButton.ToolTip = Loc.T("tip.refresh");
+        SettingsButton.ToolTip = Loc.T("tip.settings");
+        AddAccountButton.Content = _login is null ? Loc.T("footer.addAccount") : Loc.T("footer.cancel");
+        Refresh();   // rebuilds items so per-card text (Switch/Active/5-hour/7-day) re-localizes
+    }
+
+    private void SettingsButton_Click(object sender, RoutedEventArgs e) => App.OpenSettings();
 
     /// <summary>Closing the window parks the app in the tray; only the tray menu really exits.</summary>
     protected override void OnClosing(CancelEventArgs e)
@@ -71,14 +96,16 @@ public partial class MainWindow : Window
                 // Flagged up front so a dead profile is visible before it's switched into,
                 // instead of surfacing as Claude Code's sign-in screen afterwards.
                 NeedsReauth = !IsProfileUsable(p),
+
+                Compact = App.Settings.Compact,
             });
         }
 
         EmptyState.Visibility = _items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         ActiveAccountText.Text = activeEmail is null
-            ? "Not signed in"
-            : $"Active: {activeEmail}";
+            ? Loc.T("app.notSignedIn")
+            : Loc.T("app.activePrefix", activeEmail);
 
         // An account that is logged in but not yet saved is the main thing a new user needs to do.
         var currentIsSaved = _items.Any(i => i.IsActive);
@@ -351,7 +378,7 @@ public partial class MainWindow : Window
         _loginCancel = new CancellationTokenSource();
         var token = _loginCancel.Token;
 
-        AddAccountButton.Content = "Cancel";
+        AddAccountButton.Content = Loc.T("footer.cancel");
         ShowStatus("Preparing login… A browser window will come to the front.");
 
         try
@@ -554,7 +581,7 @@ public partial class MainWindow : Window
         _browserProfileDir = null;
 
         CodePanel.Visibility = Visibility.Collapsed;
-        AddAccountButton.Content = "+ Hesap Ekle";
+        AddAccountButton.Content = Loc.T("footer.addAccount");
     }
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "…";
@@ -567,29 +594,30 @@ public partial class MainWindow : Window
 
         var menu = new ContextMenu { PlacementTarget = button, IsOpen = true };
 
-        var rename = new MenuItem { Header = "Rename" };
+        var rename = new MenuItem { Header = Loc.T("menu.rename") };
         rename.Click += (_, _) => RenameProfile(item);
         menu.Items.Add(rename);
 
         var refreshTokens = new MenuItem
         {
-            Header = "Refresh this account's tokens",
+            Header = Loc.T("menu.refreshTokens"),
             IsEnabled = item.IsActive,
-            ToolTip = "Active account only: rewrites the live tokens into the profile."
+            ToolTip = Loc.T("menu.refreshTokensTip"),
         };
         refreshTokens.Click += (_, _) => SaveCurrentAccount(announce: true);
         menu.Items.Add(refreshTokens);
 
         menu.Items.Add(new Separator());
 
-        var delete = new MenuItem { Header = "Profili sil" };
+        var delete = new MenuItem { Header = Loc.T("menu.delete") };
         delete.Click += (_, _) => DeleteProfile(item);
         menu.Items.Add(delete);
     }
 
     private void RenameProfile(AccountItem item)
     {
-        var dialog = new RenameDialog(item.Profile.DisplayName) { Owner = this };
+        var dialog = new RenameDialog(item.Profile.DisplayName,
+            title: Loc.T("menu.rename"), label: Loc.T("dialog.rename.label")) { Owner = this };
         if (dialog.ShowDialog() != true) return;
 
         item.Profile.Label = dialog.NewName;
@@ -619,7 +647,6 @@ public partial class MainWindow : Window
     {
         Refresh();
         _ = RefreshUsageAsync(force: true);   // manual refresh bypasses the 5-minute cache
-        ShowStatus("Refreshing…");
     }
 
     // ── status ──────────────────────────────────────────────────────────────
@@ -653,12 +680,18 @@ internal sealed class AccountItem : INotifyPropertyChanged
     /// <summary>Stored credentials are unusable — the account has to be added again.</summary>
     public bool NeedsReauth { get; init; }
 
+    /// <summary>Compact mode collapses the usage panel for a denser list.</summary>
+    public bool Compact { get; init; }
+
+    public System.Windows.Visibility UsageVisibility =>
+        Compact ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+
     public string Subtitle
     {
         get
         {
             // The most important thing to say about this account, so it replaces the usual detail.
-            if (NeedsReauth) return "⚠ Sign-in expired — use \"+ Add Account\" to fix";
+            if (NeedsReauth) return Loc.T("reauth.subtitle");
 
             var parts = new List<string>();
             if (!string.IsNullOrWhiteSpace(Profile.Email) && Profile.Email != DisplayName)
@@ -735,15 +768,15 @@ internal sealed class AccountItem : INotifyPropertyChanged
         if (!HasUsage || resetsAt is not { } at) return "";
 
         var left = at - DateTimeOffset.UtcNow;
-        if (left <= TimeSpan.Zero) return "resetting…";
+        if (left <= TimeSpan.Zero) return Loc.T("usage.resetting");
 
         var when = left.TotalHours >= 24
             ? $"{at.ToLocalTime():d MMM HH:mm}"          // days away: show the date
             : left.TotalHours >= 1
-                ? $"in {(int)left.TotalHours}h {left.Minutes}m"
-                : $"in {(int)left.TotalMinutes}m";
+                ? Loc.T("usage.resetsInHM", (int)left.TotalHours, left.Minutes)
+                : Loc.T("usage.resetsInM", (int)left.TotalMinutes);
 
-        return $"resets {when}";
+        return Loc.T("usage.resetsPrefix", when);
     }
 
     public string UsageAsOf
@@ -751,23 +784,19 @@ internal sealed class AccountItem : INotifyPropertyChanged
         get
         {
             if (Profile.UsageFetchedAt is not { } at)
-                return IsActive ? "fetching usage…" : "updates when you switch to it";
+                return IsActive ? Loc.T("usage.fetching") : Loc.T("usage.updatesOnSwitch");
 
             var ago = DateTimeOffset.Now - at;
-            var when = ago.TotalMinutes < 1 ? "just now"
-                : ago.TotalMinutes < 60 ? $"{(int)ago.TotalMinutes}m ago"
-                : ago.TotalHours < 24 ? $"{(int)ago.TotalHours}h ago"
-                : $"{(int)ago.TotalDays}d ago";
+            var when = ago.TotalMinutes < 1 ? Loc.T("usage.justNow")
+                : ago.TotalMinutes < 60 ? Loc.T("usage.minAgo", (int)ago.TotalMinutes)
+                : ago.TotalHours < 24 ? Loc.T("usage.hourAgo", (int)ago.TotalHours)
+                : Loc.T("usage.dayAgo", (int)ago.TotalDays);
 
-            return $"updated {when}";
+            return Loc.T("usage.updatedPrefix", when);
         }
     }
 
-    public string UsageTooltip =>
-        "Real subscription usage — from the same source as Claude Code's /usage command " +
-        "(api.anthropic.com/api/oauth/usage). Covers usage across all devices and surfaces.\n\n" +
-        "Only the active account updates live; others show their value from when they were last " +
-        "active. If the data can't be fetched, no percentage is shown.";
+    public string UsageTooltip => Loc.T("usage.tooltip");
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

@@ -2,38 +2,34 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Rename"
-        Height="180" Width="360"
-        Background="{StaticResource Bg}"
+        Width="380" SizeToContent="Height" MinHeight="170"
+        Background="{DynamicResource Bg}"
         FontFamily="{StaticResource UiFont}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         UseLayoutRounding="True"
-        TextOptions.TextFormattingMode="Display">
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <!-- SizeToContent so a longer label can never push the buttons off the window,
+         which is exactly what a fixed height did before. -->
+    <StackPanel Margin="22,20,22,18">
 
-        <TextBlock Grid.Row="0" x:Name="LabelText" Text="Display name"
-                   FontSize="12" FontWeight="SemiBold"
-                   Foreground="{StaticResource TextMuted}" TextWrapping="Wrap"/>
+        <TextBlock x:Name="LabelText" Text="Display name"
+                   FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextSecondary}"
+                   TextWrapping="Wrap" LineHeight="18"/>
 
-        <TextBox Grid.Row="1" x:Name="NameBox" Margin="0,8,0,0" Padding="9,7" FontSize="13"
-                 Foreground="{StaticResource Text}"
-                 BorderBrush="{StaticResource Border}" BorderThickness="1"
-                 Background="{StaticResource Bg}"
+        <TextBox x:Name="NameBox" Style="{StaticResource Field}" Margin="0,10,0,0"
                  KeyDown="NameBox_KeyDown"/>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
             <Button Style="{StaticResource GhostButton}" Content="Cancel"
-                    IsCancel="True" Margin="0,0,8,0"/>
+                    IsCancel="True" Margin="0,0,8,0" Padding="16,8"/>
             <Button Style="{StaticResource PrimaryButton}" Content="Save"
-                    IsDefault="True" Click="Save_Click"/>
+                    IsDefault="True" Padding="18,8" Click="Save_Click"/>
         </StackPanel>
-    </Grid>
+    </StackPanel>
 </Window>

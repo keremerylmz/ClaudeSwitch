@@ -41,7 +41,7 @@ internal sealed class Profile
     /// its expiry without decrypting, so treat expiry as informational.
     /// </summary>
     [JsonIgnore]
-    public string StatusText => TokenExpired ? "Token will refresh" : "Ready";
+    public string StatusText => Loc.T(TokenExpired ? "status.tokenWillRefresh" : "status.ready");
 
     [JsonIgnore]
     public string PlanBadge => SubscriptionType.ToUpperInvariant() switch

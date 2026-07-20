@@ -36,9 +36,18 @@ Claude Code**, and adds the thing that actually matters day-to-day:
   <img src="docs/flow.png" alt="How it works" width="840">
 </p>
 
-<p align="center">
-  <img src="docs/screenshot.png" alt="ClaudeSwitch window showing two accounts with live usage" width="420">
-</p>
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/screenshot-light.png" alt="ClaudeSwitch — light theme" width="360"></td>
+    <td align="center"><img src="docs/screenshot-dark.png" alt="ClaudeSwitch — dark theme" width="360"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Light theme</sub></td>
+    <td align="center"><sub>Dark theme</sub></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Real usage %, live reset times · light & dark themes · 7 languages · compact mode</sub></p>
 
 ---
 
@@ -66,6 +75,9 @@ single click updates your terminal **and** your editor at once.
   so your current account is never touched and the login page actually asks *which* account to use.
 - **Encrypted at rest.** Tokens are sealed with Windows DPAPI (current-user scope) — unreadable by
   other users on the machine, and non-portable to other machines.
+- **Light & dark themes** with a smooth crossfade when you switch — plus a **compact mode** that
+  hides the usage panels for a denser list.
+- **7 languages** — English, Türkçe, Deutsch, Español, Français, Русский, 中文 — switchable on the fly.
 - **Safe `~/.claude.json` edits.** Your project history, MCP servers, and settings are preserved
   byte-for-byte (see [below](#why-claudejson-is-handled-so-carefully)).
 - **Automatic backups** before every switch (last 20 kept).
