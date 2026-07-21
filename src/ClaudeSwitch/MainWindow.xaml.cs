@@ -27,15 +27,22 @@ public partial class MainWindow : Window
     /// <summary>Throwaway browser profile backing the session-free login window.</summary>
     private string? _browserProfileDir;
 
-
-
+    /// <summary>Periodic refresh of every account's usage — including inactive ones.</summary>
+    private System.Windows.Threading.DispatcherTimer? _usageTimer;
+    private int _refreshAllInFlight;
 
 
     public MainWindow()
     {
         InitializeComponent();
         AccountList.ItemsSource = _items;
-        Loaded += (_, _) => Refresh();
+        Loaded += (_, _) =>
+        {
+            Refresh();
+            // Populate every account's usage a few seconds after start, without waiting for the
+            // first 10-minute tick.
+            _ = DelayThenRefreshAllAsync();
+        };
 
         // A language change re-reads every string. Item-template text refreshes when the list
         // is rebuilt; the static chrome is re-set here.
@@ -44,6 +51,16 @@ public partial class MainWindow : Window
 
         // Tint the native title bar once the window has a handle.
         SourceInitialized += (_, _) => WindowChrome.Apply(this, ThemeManager.IsDark);
+
+        // Keep every account's usage current — the active one from its live token, the rest by
+        // refreshing their stored tokens. Runs while the app lives in the tray, not just when the
+        // window is open, so the numbers are fresh whenever you glance at them.
+        _usageTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMinutes(10),
+        };
+        _usageTimer.Tick += (_, _) => _ = RefreshAllAccountsAsync();
+        _usageTimer.Start();
     }
 
     /// <summary>Re-applies the current language to the static chrome, then rebuilds the list.</summary>
@@ -55,7 +72,6 @@ public partial class MainWindow : Window
         CodeTitle.Text = Loc.T("code.title");
         CodeBody.Text = Loc.T("code.body");
         SubmitCodeButton.Content = Loc.T("code.submit");
-        RefreshButton.ToolTip = Loc.T("tip.refresh");
         SettingsButton.ToolTip = Loc.T("tip.settings");
         AddAccountButton.Content = _login is null ? Loc.T("footer.addAccount") : Loc.T("footer.cancel");
         Refresh();   // rebuilds items so per-card text (Switch/Active/5-hour/7-day) re-localizes
@@ -171,6 +187,147 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Refreshes usage for EVERY account, not just the active one — the periodic job behind the
+    /// 10-minute timer.
+    ///
+    /// The active account uses its live on-disk token (Claude Code keeps it fresh; we never
+    /// rotate it ourselves). Each inactive account uses its stored token — refreshing it first
+    /// via the OAuth refresh grant when the access token has aged out. Saving the rotated tokens
+    /// back is also what keeps inactive profiles from going stale, so a switch to them always
+    /// works.
+    /// </summary>
+    private async Task DelayThenRefreshAllAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(4));
+        await RefreshAllAccountsAsync();
+    }
+
+    private async Task RefreshAllAccountsAsync()
+    {
+        if (Interlocked.Exchange(ref _refreshAllInFlight, 1) == 1) return;
+
+        try
+        {
+            foreach (var item in _items.ToList())
+            {
+                try
+                {
+                    if (item.IsActive)
+                    {
+                        await RefreshActiveUsageAsync(item);
+                    }
+                    else
+                    {
+                        await RefreshInactiveAccountAsync(item);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    CrashLog.Write("RefreshAll", ex);
+                }
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref _refreshAllInFlight, 0);
+        }
+    }
+
+    /// <summary>Active account: fetch usage with the live on-disk token. Never refreshes it.</summary>
+    private async Task RefreshActiveUsageAsync(AccountItem item)
+    {
+        if (!File.Exists(ClaudePaths.CredentialsFile)) return;
+        var token = UsageApi.ExtractAccessToken(File.ReadAllText(ClaudePaths.CredentialsFile));
+        if (token is null) return;
+
+        var snapshot = await UsageApi.FetchAsync(token);
+        if (snapshot is null) return;
+
+        StoreUsage(item.Profile, snapshot);
+        item.RefreshUsage();
+    }
+
+    /// <summary>
+    /// Inactive account: renew the stored token if the access token has expired, then fetch its
+    /// usage. Rotated tokens are saved back so the profile never goes stale.
+    /// </summary>
+    private async Task RefreshInactiveAccountAsync(AccountItem item)
+    {
+        ProfileSecret secret;
+        try { secret = _store.LoadSecret(item.Profile.Id); }
+        catch (Exception) { return; }
+
+        var creds = secret.CredentialsJson;
+
+        // Refresh only when the access token has actually expired — no point rotating a token
+        // that still works, and it keeps refresh-endpoint traffic to a minimum.
+        if (AccessTokenExpired(creds))
+        {
+            var (result, updated) = await TokenRefresher.RefreshAsync(creds);
+            if (result == TokenRefresher.Result.Refreshed && updated is not null)
+            {
+                secret.CredentialsJson = updated;
+                creds = updated;
+
+                item.Profile.ExpiresAt = ReadExpiresAt(updated) ?? item.Profile.ExpiresAt;
+                _store.Save(item.Profile, secret);   // persist rotated tokens
+            }
+            else if (result == TokenRefresher.Result.RefreshTokenDead)
+            {
+                item.NeedsReauth = true;
+                return;
+            }
+            else
+            {
+                return;   // temporary failure; leave last-known numbers, try next cycle
+            }
+        }
+
+        var token = UsageApi.ExtractAccessToken(creds);
+        if (token is null) return;
+
+        var snapshot = await UsageApi.FetchAsync(token);
+        if (snapshot is null) return;
+
+        StoreUsage(item.Profile, snapshot);
+        item.RefreshUsage();
+    }
+
+    private void StoreUsage(Profile profile, UsageSnapshot snapshot)
+    {
+        profile.UsageFiveHourPercent = snapshot.FiveHourPercent;
+        profile.UsageFiveHourResetsAt = snapshot.FiveHourResetsAt;
+        profile.UsageSevenDayPercent = snapshot.SevenDayPercent;
+        profile.UsageSevenDayResetsAt = snapshot.SevenDayResetsAt;
+        profile.UsageFetchedAt = snapshot.FetchedAt;
+        _store.Save(profile);
+    }
+
+    private static bool AccessTokenExpired(string credentialsJson)
+    {
+        var exp = ReadExpiresAt(credentialsJson);
+        // Treat "unknown" as expired so we refresh rather than send a possibly-dead token. A
+        // 60-second margin avoids racing an expiry that is seconds away.
+        return exp is null || exp <= DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 60_000;
+    }
+
+    private static long? ReadExpiresAt(string credentialsJson)
+    {
+        try
+        {
+            var oauth = JsonSurgeon.GetRawValue(credentialsJson, "claudeAiOauth");
+            if (oauth is null) return null;
+            using var doc = System.Text.Json.JsonDocument.Parse(oauth);
+            return doc.RootElement.TryGetProperty("expiresAt", out var v) && v.TryGetInt64(out var ms)
+                ? ms : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Local-only health check on a profile's stored credentials. Never throws.</summary>
     private bool IsProfileUsable(Profile profile)
     {
@@ -263,36 +420,22 @@ public partial class MainWindow : Window
             ShowStatus($"Switched to {profile.DisplayName}. {note}");
             App.Tray?.Notify("Account switched", $"{profile.DisplayName}\n{note}");
 
-            _ = VerifySwitchedTokenAsync(profile, secret);
+            // Only warn when the account is genuinely un-restorable — i.e. its REFRESH token has
+            // expired. An expired ACCESS token is normal and self-heals: Claude Code (and our own
+            // 10-minute background refresh) renew it from the refresh token. Checking the access
+            // token here was the old false alarm that told users to re-add perfectly good accounts.
+            if (!AccountSwitcher.CredentialsUsable(secret.CredentialsJson))
+            {
+                ShowStatus($"⚠ {profile.DisplayName}: the saved sign-in has expired. " +
+                           "Use \"+ Add Account\" to sign into it once more.");
+                App.Tray?.Notify("Re-sign-in needed",
+                    $"{profile.DisplayName}'s saved sign-in expired. Add the account again.");
+            }
         }
         catch (Exception ex)
         {
             ShowError("Switch failed", ex);
         }
-    }
-
-    /// <summary>
-    /// Checks that the tokens we just restored are actually accepted, and says so plainly if
-    /// they are not.
-    ///
-    /// Without this the failure is silent and baffling: the switch "succeeds", then Claude Code
-    /// quietly drops you on its sign-in screen. A rejected token means the saved copy went stale
-    /// (refresh tokens rotate) and the account has to be added again — worth stating outright
-    /// rather than leaving the user to guess.
-    /// </summary>
-    private async Task VerifySwitchedTokenAsync(Profile profile, ProfileSecret secret)
-    {
-        var token = UsageApi.ExtractAccessToken(secret.CredentialsJson);
-        if (token is null) return;
-
-        var (_, status) = await UsageApi.FetchWithStatusAsync(token);
-        if (status != UsageApi.FetchStatus.Unauthorized) return;   // fine, or merely offline
-
-        ShowStatus($"⚠ {profile.DisplayName}: the saved sign-in is no longer valid. " +
-                   "Use \"+ Add Account\" to sign into it once more — after that it will keep working.");
-
-        App.Tray?.Notify("Re-sign-in needed",
-            $"{profile.DisplayName}'s saved sign-in expired. Add the account again.");
     }
 
     private void UseButton_Click(object sender, RoutedEventArgs e)
@@ -643,11 +786,6 @@ public partial class MainWindow : Window
         ShowStatus($"{item.Profile.DisplayName} deleted.");
     }
 
-    private void RefreshButton_Click(object sender, RoutedEventArgs e)
-    {
-        Refresh();
-        _ = RefreshUsageAsync(force: true);   // manual refresh bypasses the 5-minute cache
-    }
 
     // ── status ──────────────────────────────────────────────────────────────
 
@@ -677,8 +815,20 @@ internal sealed class AccountItem : INotifyPropertyChanged
     public string Initial => Profile.Initial;
     public string PlanBadge => Profile.PlanBadge;
 
+    private bool _needsReauth;
+
     /// <summary>Stored credentials are unusable — the account has to be added again.</summary>
-    public bool NeedsReauth { get; init; }
+    public bool NeedsReauth
+    {
+        get => _needsReauth;
+        set
+        {
+            if (_needsReauth == value) return;
+            _needsReauth = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Subtitle));
+        }
+    }
 
     /// <summary>Compact mode collapses the usage panel for a denser list.</summary>
     public bool Compact { get; init; }

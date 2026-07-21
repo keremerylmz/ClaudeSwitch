@@ -29,7 +29,6 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
@@ -43,12 +42,9 @@
                                Text="{loc:Tr app.loading}"/>
                 </StackPanel>
 
-                <Button Grid.Column="1" x:Name="RefreshButton" Style="{StaticResource IconButton}"
-                        Content="⟳" FontSize="15" ToolTip="{loc:Tr tip.refresh}"
-                        Click="RefreshButton_Click" VerticalAlignment="Center"/>
-                <Button Grid.Column="2" x:Name="SettingsButton" Style="{StaticResource IconButton}"
+                <Button Grid.Column="1" x:Name="SettingsButton" Style="{StaticResource IconButton}"
                         Content="⚙" FontSize="16" ToolTip="{loc:Tr tip.settings}"
-                        Click="SettingsButton_Click" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                        Click="SettingsButton_Click" VerticalAlignment="Center"/>
             </Grid>
         </Border>
 
