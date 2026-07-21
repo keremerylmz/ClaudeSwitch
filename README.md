@@ -102,7 +102,6 @@ Grab a build from the [**Releases**](../../releases) page:
 |---|---|
 | `ClaudeSwitch.exe` | Most people. The tray app, no prerequisites. |
 | `ClaudeSwitch-lite.exe` | Tray app, if you already have the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0). |
-| `cswitch.exe` | Optional command-line companion (see [below](#command-line)). |
 
 They're portable single files — no installer. Unsigned, so SmartScreen may warn you: **More info →
 Run anyway**.
@@ -139,8 +138,15 @@ Requires the .NET 8 SDK. Output lands in `publish\ClaudeSwitch.exe`.
 
 ## Command line
 
-`cswitch.exe` is an optional companion that drives the same switching from the terminal — for
-shell aliases, scripts, and editor hooks. It works whether or not the tray app is running.
+For terminal fans there's an optional companion, `cswitch` — the same switching from the command
+line, for aliases, scripts, and editor hooks. It isn't a release download; build it from source:
+
+```powershell
+dotnet publish src/ClaudeSwitch.Cli -c Release -r win-x64 --self-contained true `
+  -p:PublishSingleFile=true -o publish/cli
+```
+
+It works whether or not the tray app is running.
 
 ```console
 $ cswitch list
