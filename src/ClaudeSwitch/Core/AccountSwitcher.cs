@@ -197,52 +197,6 @@ internal sealed class AccountSwitcher
         }
     }
 
-    /// <summary>accountUuid of the account Claude Code is currently using, or null.</summary>
-    public static string? CurrentAccountUuid()
-    {
-        try
-        {
-            if (!File.Exists(ClaudePaths.ConfigFile)) return null;
-            var raw = JsonSurgeon.GetRawValue(File.ReadAllText(ClaudePaths.ConfigFile), "oauthAccount");
-            if (raw is null) return null;
-
-            using var doc = JsonDocument.Parse(raw);
-            return doc.RootElement.TryGetProperty("accountUuid", out var u) ? u.GetString() : null;
-        }
-        catch (Exception ex) when (ex is JsonException or IOException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Copies whatever account is live right now back into its saved profile — so its rotating
-    /// refresh token doesn't go stale. Call before overwriting the live files with a switch.
-    /// Shared by the GUI and the CLI.
-    /// </summary>
-    public void SyncActiveIntoProfile(ProfileStore store)
-    {
-        try
-        {
-            var captured = CaptureCurrent();
-            if (captured is null) return;
-
-            var (fresh, secret) = captured.Value;
-            if (string.IsNullOrEmpty(fresh.AccountUuid)) return;
-
-            var stored = store.LoadAll().FirstOrDefault(p =>
-                string.Equals(p.AccountUuid, fresh.AccountUuid, StringComparison.OrdinalIgnoreCase));
-            if (stored is null) return;
-
-            stored.ExpiresAt = fresh.ExpiresAt;
-            stored.SubscriptionType = fresh.SubscriptionType;
-            store.Save(stored, secret);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-        {
-        }
-    }
-
     /// <summary>Keeps the last 20 snapshots of the live files under %APPDATA%\ClaudeSwitch\backups.</summary>
     private static void BackupLiveFiles()
     {

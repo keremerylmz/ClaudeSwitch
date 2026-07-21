@@ -136,45 +136,6 @@ Requires the .NET 8 SDK. Output lands in `publish\ClaudeSwitch.exe`.
 
 ---
 
-## Command line
-
-For terminal fans there's an optional companion, `cswitch` — the same switching from the command
-line, for aliases, scripts, and editor hooks. It isn't a release download; build it from source:
-
-```powershell
-dotnet publish src/ClaudeSwitch.Cli -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=true -o publish/cli
-```
-
-It works whether or not the tray app is running.
-
-```console
-$ cswitch list
-* 1. you@example.com      MAX    5h 24%  7d 4%
-  2. work@example.com     TEAM   5h 0%   7d 96%
-
-$ cswitch switch work        # by index, email, or name
-Switched to work@example.com.
-
-$ cswitch current
-work@example.com
-
-$ cswitch usage --json | jq .five_hour.percent
-24
-```
-
-| Command | Does |
-|---|---|
-| `list` | Saved accounts + their usage; `*` marks the active one |
-| `current` | Print the active account (exit 1 if none) |
-| `switch <index\|email\|name>` | Switch account (syncs the outgoing account's token first) |
-| `usage [--json]` | The active account's live 5-hour / 7-day usage |
-| `version` | Print the version |
-
-Put it on your `PATH` and add an alias, e.g. `alias cw='cswitch switch'`.
-
----
-
 ## Real usage percentages
 
 The **5-hour** and **7-day** percentages on each card are **real**: they come from
@@ -184,11 +145,13 @@ surfaces (CLI, desktop, claude.ai), and the reset times come from the same respo
 
 How it behaves:
 
-- **Only the active account updates live** (its token is read fresh from
-  `~/.claude/.credentials.json`). Other accounts show their value from when they were last active
-  (`updates when you switch to it`). Switching to an account refreshes it.
-- **Fetched every 5 minutes** (force it with the ⟳ button). The endpoint rate-limits hard, so it's
-  polled sparingly and cached.
+- **Every account stays current**, not just the active one. Every 10 minutes ClaudeSwitch refreshes
+  usage for all of them: the active account via its live token, inactive accounts by first renewing
+  their stored token through Claude Code's own OAuth refresh flow.
+- **That's also what keeps saved accounts alive.** Access tokens last ~1 day and refresh tokens
+  rotate on every use, so the rotated token is saved back each time — a saved account keeps working
+  instead of quietly going stale.
+- **Polled sparingly.** The endpoint rate-limits hard, so results are cached between refreshes.
 - **Fails safe.** If the data can't be fetched, no percentage is shown — never a stale or invented
   one. The bar is green under 70%, amber to 90%, red above.
 
