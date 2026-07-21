@@ -33,6 +33,96 @@ internal sealed class TrayIcon : IDisposable
         };
 
         _icon.DoubleClick += (_, _) => App.ShowMain();
+        _icon.BalloonTipClicked += (_, _) =>
+        {
+            if (_pendingUpdateUrl is { } url)
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                }
+                catch (Exception) { }
+            }
+        };
+    }
+
+    private Icon? _generatedIcon;
+
+    /// <summary>
+    /// Colours the tray icon by the active account's 5-hour usage (green → amber → red) and puts
+    /// the numbers in the hover tooltip, so the current state is readable without opening anything.
+    /// </summary>
+    public void SetActiveUsage(double? fiveHourPercent, string? accountName)
+    {
+        var name = accountName ?? "ClaudeSwitch";
+        var tip = fiveHourPercent is { } p
+            ? $"{name} — {(int)p}% (5h)"
+            : name;
+        _icon.Text = tip.Length > 62 ? tip[..62] : tip;
+
+        var fresh = BuildIcon(fiveHourPercent);
+        if (fresh is not null)
+        {
+            _icon.Icon = fresh;
+            _generatedIcon?.Dispose();
+            _generatedIcon = fresh;
+        }
+    }
+
+    /// <summary>Draws the switch-arrows tile in a colour that reflects the usage level.</summary>
+    private static Icon? BuildIcon(double? fiveHourPercent)
+    {
+        try
+        {
+            var tile = fiveHourPercent switch
+            {
+                >= 90 => Color.FromArgb(0xB4, 0x44, 0x3A),   // red
+                >= 70 => Color.FromArgb(0xC9, 0x64, 0x42),   // amber-ish accent
+                null => Color.FromArgb(0xC9, 0x64, 0x42),    // unknown: brand accent
+                _ => Color.FromArgb(0x2F, 0x7A, 0x5B),        // green
+            };
+
+            using var bmp = new Bitmap(32, 32);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.Clear(Color.Transparent);
+                using var brush = new SolidBrush(tile);
+                FillRounded(g, brush, new Rectangle(2, 2, 28, 28), 8);
+
+                using var pen = new Pen(Color.White, 2.6f)
+                {
+                    StartCap = System.Drawing.Drawing2D.LineCap.Round,
+                    EndCap = System.Drawing.Drawing2D.LineCap.Round,
+                };
+                g.DrawLine(pen, 9, 12, 22, 12);
+                g.DrawLine(pen, 19, 9, 22, 12);
+                g.DrawLine(pen, 19, 15, 22, 12);
+                g.DrawLine(pen, 22, 20, 9, 20);
+                g.DrawLine(pen, 12, 17, 9, 20);
+                g.DrawLine(pen, 12, 23, 9, 20);
+            }
+
+            var hIcon = bmp.GetHicon();
+            using var tmp = Icon.FromHandle(hIcon);
+            return (Icon)tmp.Clone();
+        }
+        catch (Exception ex) when (ex is ArgumentException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    private static void FillRounded(Graphics g, Brush brush, Rectangle r, int radius)
+    {
+        using var path = new System.Drawing.Drawing2D.GraphicsPath();
+        var d = radius * 2;
+        path.AddArc(r.X, r.Y, d, d, 180, 90);
+        path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+        path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+        path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        g.FillPath(brush, path);
     }
 
     /// <summary>Applies theme colours to the menu shell. Item colours are drawn by the renderer.</summary>
@@ -113,10 +203,23 @@ internal sealed class TrayIcon : IDisposable
 
     public void Notify(string title, string message)
     {
+        _pendingUpdateUrl = null;
         _icon.BalloonTipTitle = title;
         _icon.BalloonTipText = message;
         _icon.BalloonTipIcon = ToolTipIcon.Info;
         _icon.ShowBalloonTip(3000);
+    }
+
+    private string? _pendingUpdateUrl;
+
+    /// <summary>Shows an update balloon whose click opens the releases page.</summary>
+    public void NotifyUpdate(string title, string message, string url)
+    {
+        _pendingUpdateUrl = url;
+        _icon.BalloonTipTitle = title;
+        _icon.BalloonTipText = message;
+        _icon.BalloonTipIcon = ToolTipIcon.Info;
+        _icon.ShowBalloonTip(6000);
     }
 
     public void Dispose()
@@ -124,6 +227,7 @@ internal sealed class TrayIcon : IDisposable
         _icon.Visible = false;
         _icon.Dispose();
         _menu.Dispose();
+        _generatedIcon?.Dispose();
     }
 }
 

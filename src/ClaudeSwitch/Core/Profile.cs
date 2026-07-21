@@ -67,6 +67,28 @@ internal sealed class Profile
     public double? UsageSevenDayPercent { get; set; }
     public DateTimeOffset? UsageSevenDayResetsAt { get; set; }
     public DateTimeOffset? UsageFetchedAt { get; set; }
+
+    /// <summary>Recent 5-hour utilization samples for the card's trend sparkline (oldest first).</summary>
+    public List<UsageSample> UsageHistory { get; set; } = [];
+
+    /// <summary>Appends a sample and trims the history to the most recent <paramref name="cap"/>.</summary>
+    public void RecordUsageSample(double fivePercent, int cap = 72)
+    {
+        UsageHistory.Add(new UsageSample
+        {
+            T = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Five = fivePercent,
+        });
+        if (UsageHistory.Count > cap)
+            UsageHistory.RemoveRange(0, UsageHistory.Count - cap);
+    }
+}
+
+/// <summary>One point of usage history: a timestamp and the 5-hour utilization then.</summary>
+internal sealed class UsageSample
+{
+    public long T { get; set; }
+    public double Five { get; set; }
 }
 
 /// <summary>

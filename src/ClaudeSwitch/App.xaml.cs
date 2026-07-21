@@ -98,6 +98,18 @@ public partial class App : Application
 
         if (!startHidden) MainView.Show();
         else MainView.Refresh();   // populate the tray menu without showing the window
+
+        // Keep the Run key in step with the setting (e.g. if the exe was moved).
+        if (Settings.StartWithWindows) StartupManager.Set(true);
+
+        if (Settings.CheckForUpdates) _ = CheckForUpdatesAsync();
+    }
+
+    private static async Task CheckForUpdatesAsync()
+    {
+        var latest = await UpdateChecker.CheckAsync();
+        if (latest is not null)
+            Tray?.NotifyUpdate("ClaudeSwitch", Loc.T("update.available", latest), UpdateChecker.ReleasesPage);
     }
 
     /// <summary>Brings the window back from the tray.</summary>

@@ -31,6 +31,13 @@ public partial class MainWindow : Window
     private System.Windows.Threading.DispatcherTimer? _usageTimer;
     private int _refreshAllInFlight;
 
+    // Smart-limit state.
+    private string? _lastNotifiedUuid;
+    private int _lastNotifiedLevel;        // 0 · 80 · threshold — avoids repeat balloons
+    private DateTimeOffset _lastAutoSwitch = DateTimeOffset.MinValue;
+
+    private GlobalHotkey? _hotkey;
+
 
     public MainWindow()
     {
@@ -47,10 +54,14 @@ public partial class MainWindow : Window
         // A language change re-reads every string. Item-template text refreshes when the list
         // is rebuilt; the static chrome is re-set here.
         Loc.Changed += Relocalize;
-        Closed += (_, _) => Loc.Changed -= Relocalize;
+        Closed += (_, _) => { Loc.Changed -= Relocalize; _hotkey?.Dispose(); };
 
-        // Tint the native title bar once the window has a handle.
-        SourceInitialized += (_, _) => WindowChrome.Apply(this, ThemeManager.IsDark);
+        // Tint the native title bar and register the global hotkey once the window has a handle.
+        SourceInitialized += (_, _) =>
+        {
+            WindowChrome.Apply(this, ThemeManager.IsDark);
+            ApplyHotkeySetting();
+        };
 
         // Keep every account's usage current — the active one from its live token, the rest by
         // refreshing their stored tokens. Runs while the app lives in the tray, not just when the
@@ -78,6 +89,26 @@ public partial class MainWindow : Window
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => App.OpenSettings();
+
+    /// <summary>Registers or releases the global hotkey to match the current setting.</summary>
+    public void ApplyHotkeySetting()
+    {
+        _hotkey?.Dispose();
+        _hotkey = null;
+        if (App.Settings.GlobalHotkey)
+            _hotkey = GlobalHotkey.Register(this, CycleToNextAccount);
+    }
+
+    /// <summary>Switches to the next switchable account after the active one — the hotkey action.</summary>
+    private void CycleToNextAccount()
+    {
+        var switchable = _items.Where(i => !i.NeedsReauth).ToList();
+        if (switchable.Count < 2) return;
+
+        var activeIndex = switchable.FindIndex(i => i.IsActive);
+        var next = switchable[(activeIndex + 1) % switchable.Count];
+        if (!next.IsActive) SwitchTo(next.Profile);
+    }
 
     /// <summary>Closing the window parks the app in the tray; only the tray menu really exits.</summary>
     protected override void OnClosing(CancelEventArgs e)
@@ -180,6 +211,7 @@ public partial class MainWindow : Window
 
             _store.Save(active.Profile);   // persist so a later switch shows last-known numbers
             active.RefreshUsage();
+            UpdateSmartState();
         }
         finally
         {
@@ -227,11 +259,74 @@ public partial class MainWindow : Window
                     CrashLog.Write("RefreshAll", ex);
                 }
             }
+
+            UpdateSmartState();
         }
         finally
         {
             Volatile.Write(ref _refreshAllInFlight, 0);
         }
+    }
+
+    /// <summary>
+    /// Derives everything that depends on fresh usage: the "most free" badge, the tray icon's
+    /// colour, limit notifications, and — if enabled — auto-switching away from a maxed-out
+    /// account. Called after any usage refresh.
+    /// </summary>
+    private void UpdateSmartState()
+    {
+        var usableInactive = _items
+            .Where(i => !i.IsActive && !i.NeedsReauth && i.HasUsage)
+            .ToList();
+
+        // The account with the most 5-hour headroom right now.
+        var mostFree = usableInactive.OrderBy(i => i.FiveHourValue).FirstOrDefault();
+        foreach (var i in _items) i.IsMostFree = ReferenceEquals(i, mostFree) && usableInactive.Count > 0;
+
+        var active = _items.FirstOrDefault(i => i.IsActive);
+        App.Tray?.SetActiveUsage(active is { HasUsage: true } ? active.FiveHourValue : (double?)null,
+                                 active?.DisplayName);
+
+        if (active is not { HasUsage: true }) return;
+        var pct = active.FiveHourValue;
+
+        NotifyLimitIfNeeded(active, pct);
+
+        if (App.Settings.AutoSwitch && pct >= App.Settings.AutoSwitchThreshold)
+            AutoSwitchIfWorthwhile(active, mostFree);
+    }
+
+    private void NotifyLimitIfNeeded(AccountItem active, double pct)
+    {
+        if (!App.Settings.LimitNotifications) return;
+
+        var uuid = active.Profile.AccountUuid ?? "";
+        if (uuid != _lastNotifiedUuid) { _lastNotifiedUuid = uuid; _lastNotifiedLevel = 0; }
+
+        var threshold = App.Settings.AutoSwitchThreshold;
+        var level = pct >= threshold ? threshold : pct >= 80 ? 80 : 0;
+        if (level <= _lastNotifiedLevel) return;   // only notify on the way up
+        _lastNotifiedLevel = level;
+
+        if (level == 0) return;
+        var msg = level >= threshold
+            ? Loc.T("notify.atLimitBody", active.DisplayName)
+            : Loc.T("notify.nearLimitBody", active.DisplayName, (int)pct);
+        App.Tray?.Notify(Loc.T("notify.limitTitle"), msg);
+    }
+
+    private void AutoSwitchIfWorthwhile(AccountItem active, AccountItem? mostFree)
+    {
+        // Only switch to a clearly fresher account, and never more than once every few minutes,
+        // so a pair of near-full accounts can't ping-pong.
+        if (mostFree is null) return;
+        if (DateTimeOffset.Now - _lastAutoSwitch < TimeSpan.FromMinutes(3)) return;
+        if (mostFree.FiveHourValue > active.FiveHourValue - 15) return;
+
+        _lastAutoSwitch = DateTimeOffset.Now;
+        App.Tray?.Notify(Loc.T("notify.autoSwitchTitle"),
+            Loc.T("notify.autoSwitchBody", mostFree.DisplayName));
+        SwitchTo(mostFree.Profile);
     }
 
     /// <summary>Active account: fetch usage with the live on-disk token. Never refreshes it.</summary>
@@ -301,6 +396,7 @@ public partial class MainWindow : Window
         profile.UsageSevenDayPercent = snapshot.SevenDayPercent;
         profile.UsageSevenDayResetsAt = snapshot.SevenDayResetsAt;
         profile.UsageFetchedAt = snapshot.FetchedAt;
+        profile.RecordUsageSample(snapshot.FiveHourPercent);
         _store.Save(profile);
     }
 
@@ -877,11 +973,54 @@ internal sealed class AccountItem : INotifyPropertyChanged
             nameof(SevenDayText), nameof(SevenDayReset), nameof(SevenDayStar),
             nameof(SevenDayRestStar), nameof(SevenDayBrush),
             nameof(UsageAsOf), nameof(UsageTooltip),
+            nameof(SparkPoints), nameof(SparkVisibility),
         })
             OnPropertyChanged(name);
     }
 
-    private bool HasUsage => Profile.UsageFetchedAt is not null;
+    public bool HasUsage => Profile.UsageFetchedAt is not null;
+
+    /// <summary>5-hour utilization as a number; treated as full when unknown, for "most free" ranking.</summary>
+    public double FiveHourValue => Profile.UsageFiveHourPercent ?? 100;
+
+    // ── sparkline: 5-hour utilization over recent samples, scaled into a 74×16 box ──
+
+    private const double SparkW = 74, SparkH = 16;
+
+    public System.Windows.Visibility SparkVisibility =>
+        Profile.UsageHistory.Count >= 2 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+
+    public System.Windows.Media.PointCollection SparkPoints
+    {
+        get
+        {
+            var points = new System.Windows.Media.PointCollection();
+            var h = Profile.UsageHistory;
+            if (h.Count < 2) return points;
+
+            var n = h.Count;
+            for (var i = 0; i < n; i++)
+            {
+                var x = SparkW * i / (n - 1);
+                // 0% at the bottom, 100% at the top, with a 1px margin so the stroke isn't clipped.
+                var y = SparkH - 1 - Math.Clamp(h[i].Five, 0, 100) / 100.0 * (SparkH - 2);
+                points.Add(new System.Windows.Point(x, y));
+            }
+            return points;
+        }
+    }
+
+    private bool _isMostFree;
+
+    /// <summary>This inactive account currently has the most 5-hour headroom.</summary>
+    public bool IsMostFree
+    {
+        get => _isMostFree;
+        set { if (_isMostFree == value) return; _isMostFree = value; OnPropertyChanged(); OnPropertyChanged(nameof(MostFreeVisibility)); }
+    }
+
+    public System.Windows.Visibility MostFreeVisibility =>
+        _isMostFree ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
     public string FiveHourText => HasUsage ? $"{Profile.UsageFiveHourPercent:0}%" : "…";
     public string SevenDayText => HasUsage ? $"{Profile.UsageSevenDayPercent:0}%" : "…";

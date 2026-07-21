@@ -88,9 +88,19 @@
                                                        TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
 
-                                        <Border Grid.Column="2" Style="{StaticResource Badge}" Margin="8,0,6,0">
-                                            <TextBlock Text="{Binding PlanBadge}" Style="{StaticResource BadgeText}"/>
-                                        </Border>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,6,0">
+                                            <Border Visibility="{Binding MostFreeVisibility}" CornerRadius="5"
+                                                    Padding="7,3" Margin="0,0,5,0"
+                                                    Background="{DynamicResource AccentSoft}"
+                                                    BorderBrush="{DynamicResource AccentBorder}" BorderThickness="1">
+                                                <TextBlock Text="{loc:Tr card.mostFree}"
+                                                           FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource Accent}"/>
+                                            </Border>
+                                            <Border Style="{StaticResource Badge}">
+                                                <TextBlock Text="{Binding PlanBadge}" Style="{StaticResource BadgeText}"/>
+                                            </Border>
+                                        </StackPanel>
 
                                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                                             <Button x:Name="UseButton" Style="{StaticResource GhostButton}"
@@ -160,10 +170,18 @@
                                                        Foreground="{DynamicResource TextMuted}"/>
 
                                             <Border Height="1" Margin="0,11,0,0" Background="{DynamicResource Border}"/>
-                                            <TextBlock Text="{Binding UsageAsOf}" Margin="0,8,0,0"
-                                                       FontSize="{StaticResource FontCaption}"
-                                                       Foreground="{DynamicResource TextMuted}"
-                                                       TextTrimming="CharacterEllipsis"/>
+                                            <Grid Margin="0,8,0,0">
+                                                <TextBlock Text="{Binding UsageAsOf}" HorizontalAlignment="Left"
+                                                           FontSize="{StaticResource FontCaption}"
+                                                           Foreground="{DynamicResource TextMuted}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <!-- 5-hour usage trend over recent samples. -->
+                                                <Polyline HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                          Visibility="{Binding SparkVisibility}"
+                                                          Points="{Binding SparkPoints}"
+                                                          Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
+                                                          StrokeLineJoin="Round" Width="74" Height="16"/>
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>

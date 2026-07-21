@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: keremerylmz.ClaudeSwitch
+PackageVersion: 0.2.0
+PackageLocale: en-US
+Publisher: kerem01121
+PublisherUrl: https://github.com/keremerylmz
+PackageName: ClaudeSwitch
+PackageUrl: https://github.com/keremerylmz/ClaudeSwitch
+License: MIT
+LicenseUrl: https://github.com/keremerylmz/ClaudeSwitch/blob/main/LICENSE
+ShortDescription: One-click Claude Code account switcher for CLI and VS Code, with real usage %.
+Description: |-
+  ClaudeSwitch switches between Claude Code accounts in one click — covering the CLI and the
+  VS Code extension at once — and shows real 5-hour and 7-day usage with reset times. Hit your
+  limit mid-conversation, switch, and just say "continue". Light/dark themes, 7 languages,
+  auto-switch at limit, and background token refresh so accounts never go stale.
+Moniker: claudeswitch
+Tags:
+  - claude
+  - claude-code
+  - account-switcher
+  - tray
+  - productivity
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

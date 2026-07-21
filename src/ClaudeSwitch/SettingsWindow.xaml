@@ -66,6 +66,80 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Behavior -->
+                <TextBlock x:Name="BehaviorHeader" Text="BEHAVIOR"
+                           FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMuted}" Margin="2,20,0,10"/>
+
+                <Border Background="{DynamicResource Surface}" CornerRadius="10"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="14,4">
+                    <StackPanel>
+                        <Grid Height="54">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="AutoSwitchTitle" Text="Auto-switch at limit"
+                                           FontSize="{StaticResource FontStrong}" Foreground="{DynamicResource Text}"/>
+                                <TextBlock x:Name="AutoSwitchDesc" TextWrapping="Wrap" FontSize="{StaticResource FontSmall}"
+                                           Margin="0,2,0,0" Foreground="{DynamicResource TextMuted}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="AutoSwitchToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="AutoSwitchToggle_Changed" Unchecked="AutoSwitchToggle_Changed"/>
+                        </Grid>
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="54">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="NotifyTitle" Text="Limit notifications"
+                                           FontSize="{StaticResource FontStrong}" Foreground="{DynamicResource Text}"/>
+                                <TextBlock x:Name="NotifyDesc" TextWrapping="Wrap" FontSize="{StaticResource FontSmall}"
+                                           Margin="0,2,0,0" Foreground="{DynamicResource TextMuted}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="NotifyToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="NotifyToggle_Changed" Unchecked="NotifyToggle_Changed"/>
+                        </Grid>
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="54">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="StartupTitle" Text="Start with Windows"
+                                           FontSize="{StaticResource FontStrong}" Foreground="{DynamicResource Text}"/>
+                                <TextBlock x:Name="StartupDesc" TextWrapping="Wrap" FontSize="{StaticResource FontSmall}"
+                                           Margin="0,2,0,0" Foreground="{DynamicResource TextMuted}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="StartupToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="StartupToggle_Changed" Unchecked="StartupToggle_Changed"/>
+                        </Grid>
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="54">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="HotkeyTitle" Text="Global hotkey"
+                                           FontSize="{StaticResource FontStrong}" Foreground="{DynamicResource Text}"/>
+                                <TextBlock x:Name="HotkeyDesc" TextWrapping="Wrap" FontSize="{StaticResource FontSmall}"
+                                           Margin="0,2,0,0" Foreground="{DynamicResource TextMuted}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="HotkeyToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="HotkeyToggle_Changed" Unchecked="HotkeyToggle_Changed"/>
+                        </Grid>
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="54">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="UpdatesTitle" Text="Check for updates"
+                                           FontSize="{StaticResource FontStrong}" Foreground="{DynamicResource Text}"/>
+                                <TextBlock x:Name="UpdatesDesc" TextWrapping="Wrap" FontSize="{StaticResource FontSmall}"
+                                           Margin="0,2,0,0" Foreground="{DynamicResource TextMuted}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="UpdatesToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="UpdatesToggle_Changed" Unchecked="UpdatesToggle_Changed"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <!-- Language -->
                 <TextBlock x:Name="LanguageHeader" Text="LANGUAGE"
                            FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"

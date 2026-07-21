@@ -75,6 +75,15 @@ single click updates your terminal **and** your editor at once.
   so your current account is never touched and the login page actually asks *which* account to use.
 - **Encrypted at rest.** Tokens are sealed with Windows DPAPI (current-user scope) — unreadable by
   other users on the machine, and non-portable to other machines.
+- **Auto-switch at your limit.** When the active account hits its 5-hour limit, ClaudeSwitch can
+  jump to the account with the most headroom automatically — so you never stop to fiddle. Optional.
+- **Limit notifications & a colour-coded tray icon.** The tray icon goes green → amber → red with
+  the active account's usage, and warns you before you get blocked.
+- **"Most free" badge** highlights which saved account has the most quota left right now.
+- **Usage trend sparkline** on each card, from the history collected in the background.
+- **Global hotkey** (`Ctrl+Alt+S`) cycles accounts from anywhere, and **Start with Windows** keeps
+  it in your tray.
+- **Auto-update check** notifies you when a newer release is out.
 - **Light & dark themes** with a smooth crossfade when you switch — plus a **compact mode** that
   hides the usage panels for a denser list.
 - **7 languages** — English, Türkçe, Deutsch, Español, Français, Русский, 中文 — switchable on the fly.

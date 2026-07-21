@@ -24,6 +24,11 @@ public partial class SettingsWindow : Window
         _loading = true;
         DarkToggle.IsChecked = settings.DarkMode;
         CompactToggle.IsChecked = settings.Compact;
+        AutoSwitchToggle.IsChecked = settings.AutoSwitch;
+        NotifyToggle.IsChecked = settings.LimitNotifications;
+        StartupToggle.IsChecked = StartupManager.IsEnabled();
+        HotkeyToggle.IsChecked = settings.GlobalHotkey;
+        UpdatesToggle.IsChecked = settings.CheckForUpdates;
         _loading = false;
 
         BuildLanguageList();
@@ -54,6 +59,45 @@ public partial class SettingsWindow : Window
         // Crossfade the main window as its list relayouts with/without the usage panels.
         if (App.MainView is { } main)
             ThemeTransition.Crossfade(new[] { main }, () => main.Refresh());
+    }
+
+    // ── behavior ────────────────────────────────────────────────────────────
+
+    private void AutoSwitchToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.AutoSwitch = AutoSwitchToggle.IsChecked == true;
+        _settings.Save();
+    }
+
+    private void NotifyToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.LimitNotifications = NotifyToggle.IsChecked == true;
+        _settings.Save();
+    }
+
+    private void StartupToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.StartWithWindows = StartupToggle.IsChecked == true;
+        _settings.Save();
+        StartupManager.Set(_settings.StartWithWindows);
+    }
+
+    private void HotkeyToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.GlobalHotkey = HotkeyToggle.IsChecked == true;
+        _settings.Save();
+        App.MainView?.ApplyHotkeySetting();
+    }
+
+    private void UpdatesToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.CheckForUpdates = UpdatesToggle.IsChecked == true;
+        _settings.Save();
     }
 
     // ── language ────────────────────────────────────────────────────────────
@@ -120,6 +164,19 @@ public partial class SettingsWindow : Window
         DarkDesc.Text = Loc.T("settings.darkModeDesc");
         CompactTitle.Text = Loc.T("settings.compact");
         CompactDesc.Text = Loc.T("settings.compactDesc");
+
+        BehaviorHeader.Text = Loc.T("settings.behavior");
+        AutoSwitchTitle.Text = Loc.T("settings.autoSwitch");
+        AutoSwitchDesc.Text = Loc.T("settings.autoSwitchDesc");
+        NotifyTitle.Text = Loc.T("settings.notifications");
+        NotifyDesc.Text = Loc.T("settings.notificationsDesc");
+        StartupTitle.Text = Loc.T("settings.startup");
+        StartupDesc.Text = Loc.T("settings.startupDesc");
+        HotkeyTitle.Text = Loc.T("settings.hotkey");
+        HotkeyDesc.Text = Loc.T("settings.hotkeyDesc");
+        UpdatesTitle.Text = Loc.T("settings.updates");
+        UpdatesDesc.Text = Loc.T("settings.updatesDesc");
+
         LanguageHeader.Text = Loc.T("settings.language");
         DoneButton.Content = Loc.T("settings.done");
     }
