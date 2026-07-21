@@ -20,6 +20,8 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // CLI mode: a command was given (list/switch/usage/…). Run it, then exit — no window,
+        // no tray, no single-instance mutex (the CLI can run alongside a running tray app).
         // A second instance could race the first one writing credentials — allow only one.
         _singleInstance = new Mutex(initiallyOwned: true, "ClaudeSwitch.SingleInstance", out var isFirst);
         if (!isFirst)

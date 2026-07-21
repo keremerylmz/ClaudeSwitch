@@ -100,10 +100,11 @@ Grab a build from the [**Releases**](../../releases) page:
 
 | File | When to use it |
 |---|---|
-| `ClaudeSwitch-standalone.exe` | Most people. No prerequisites. |
-| `ClaudeSwitch-lite.exe` | If you already have the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0). |
+| `ClaudeSwitch.exe` | Most people. The tray app, no prerequisites. |
+| `ClaudeSwitch-lite.exe` | Tray app, if you already have the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0). |
+| `cswitch.exe` | Optional command-line companion (see [below](#command-line)). |
 
-It's a portable single file — no installer. Unsigned, so SmartScreen may warn you: **More info →
+They're portable single files — no installer. Unsigned, so SmartScreen may warn you: **More info →
 Run anyway**.
 
 > You need Claude Code installed and signed in at least once
@@ -133,6 +134,38 @@ Requires the .NET 8 SDK. Output lands in `publish\ClaudeSwitch.exe`.
 > just keep typing — Claude Code reads the new credentials on your next message. If a session is
 > stubbornly holding the old account, restarting it (or `claude --continue`) forces the change and
 > resumes the same conversation.
+
+---
+
+## Command line
+
+`cswitch.exe` is an optional companion that drives the same switching from the terminal — for
+shell aliases, scripts, and editor hooks. It works whether or not the tray app is running.
+
+```console
+$ cswitch list
+* 1. you@example.com      MAX    5h 24%  7d 4%
+  2. work@example.com     TEAM   5h 0%   7d 96%
+
+$ cswitch switch work        # by index, email, or name
+Switched to work@example.com.
+
+$ cswitch current
+work@example.com
+
+$ cswitch usage --json | jq .five_hour.percent
+24
+```
+
+| Command | Does |
+|---|---|
+| `list` | Saved accounts + their usage; `*` marks the active one |
+| `current` | Print the active account (exit 1 if none) |
+| `switch <index\|email\|name>` | Switch account (syncs the outgoing account's token first) |
+| `usage [--json]` | The active account's live 5-hour / 7-day usage |
+| `version` | Print the version |
+
+Put it on your `PATH` and add an alias, e.g. `alias cw='cswitch switch'`.
 
 ---
 
