@@ -108,7 +108,7 @@
 
                                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                                             <Button x:Name="UseButton" Style="{StaticResource GhostButton}"
-                                                    Content="{loc:Tr card.switch}" Padding="13,6"
+                                                    Content="{Binding ActionLabel}" Padding="13,6"
                                                     FontSize="{StaticResource FontSmall}"
                                                     Tag="{Binding}" Click="UseButton_Click"/>
                                             <Button Style="{StaticResource IconButton}" Content="⋯"
@@ -196,7 +196,6 @@
                                     <Setter TargetName="Card" Property="Background" Value="{DynamicResource AccentSoft}"/>
                                     <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource AccentBorder}"/>
                                     <Setter TargetName="UsageBox" Property="Background" Value="{DynamicResource Bg}"/>
-                                    <Setter TargetName="UseButton" Property="Content" Value="{loc:Tr card.active}"/>
                                     <Setter TargetName="UseButton" Property="IsEnabled" Value="False"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding NeedsReauth}" Value="True">

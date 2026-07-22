@@ -89,18 +89,21 @@ public partial class MainWindow : Window
         _usageTimer.Start();
     }
 
-    /// <summary>Re-applies the current language to the static chrome, then rebuilds the list.</summary>
+    /// <summary>
+    /// Handles the two things a language change does NOT fix on its own.
+    ///
+    /// Everything written as {loc:Tr} now re-reads itself, so assigning those by hand here would
+    /// be worse than redundant: a local value replaces a binding, which would quietly break the
+    /// live updates for every later change.
+    /// </summary>
     private void Relocalize()
     {
-        EmptyTitle.Text = Loc.T("empty.title");
-        EmptyBody.Text = Loc.T("empty.body");
-        SaveCurrentButton.Content = Loc.T("footer.saveCurrent");
-        CodeTitle.Text = Loc.T("code.title");
-        CodeBody.Text = Loc.T("code.body");
-        SubmitCodeButton.Content = Loc.T("code.submit");
-        SettingsButton.ToolTip = Loc.T("tip.settings");
+        // This label depends on whether a login is in flight, so no single key describes it.
         AddAccountButton.Content = _login is null ? Loc.T("footer.addAccount") : Loc.T("footer.cancel");
-        Refresh();   // rebuilds items so per-card text (Switch/Active/5-hour/7-day) re-localizes
+
+        // Card text built in C# (subtitles, "updated 3m ago", reset countdowns) is not bound,
+        // so the items are rebuilt to pick the new language up.
+        Refresh();
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => ShowSettings();
@@ -1361,10 +1364,18 @@ internal sealed class AccountItem : INotifyPropertyChanged
         {
             _isActive = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(ActionLabel));
             OnPropertyChanged(nameof(AvatarBrush));
             OnPropertyChanged(nameof(AvatarTextBrush));
         }
     }
+
+    /// <summary>
+    /// The row button's label. A property rather than a template trigger because a trigger's
+    /// Setter.Value cannot carry the live translation binding {loc:Tr} now produces — and one
+    /// binding is less machinery than a trigger anyway.
+    /// </summary>
+    public string ActionLabel => Loc.T(IsActive ? "card.active" : "card.switch");
 
     // ── avatar ───────────────────────────────────────────────────────────────
 
