@@ -96,9 +96,13 @@ internal sealed class AppSettings
     /// <summary>Show the small always-on-top usage pill instead of the full window.</summary>
     public bool MiniMode { get; set; }
 
-    /// <summary>Last position of the mini pill; NaN until it has been placed once.</summary>
-    public double MiniLeft { get; set; } = double.NaN;
-    public double MiniTop { get; set; } = double.NaN;
+    /// <summary>
+    /// Last position of the mini pill; null until it has been placed once. Nullable, not NaN:
+    /// System.Text.Json refuses to write NaN/Infinity, so a NaN here made every Save() throw and
+    /// no setting persisted at all.
+    /// </summary>
+    public double? MiniLeft { get; set; }
+    public double? MiniTop { get; set; }
 
     private static string Path => System.IO.Path.Combine(ClaudePaths.AppDataDir, "settings.json");
 
@@ -134,8 +138,12 @@ internal sealed class AppSettings
             ClaudePaths.EnsureAppDirectories();
             AtomicFile.WriteAllText(Path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
+            // Persisting preferences is never worth crashing over. A NaN in one field once made
+            // JsonSerializer throw here, which — because every settings toggle calls Save() — took
+            // the whole settings panel down with it. Whatever the cause, degrade to "not saved".
+            CrashLog.Write("SettingsSave", ex);
         }
     }
 }

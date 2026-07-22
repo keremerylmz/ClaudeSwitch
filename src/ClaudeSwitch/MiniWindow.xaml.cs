@@ -66,10 +66,10 @@ public partial class MiniWindow : Window
     private void RestorePosition()
     {
         var s = App.Settings;
-        if (!double.IsNaN(s.MiniLeft) && !double.IsNaN(s.MiniTop) && OnAScreen(s.MiniLeft, s.MiniTop))
+        if (s.MiniLeft is { } left && s.MiniTop is { } top && OnAScreen(left, top))
         {
-            Left = s.MiniLeft;
-            Top = s.MiniTop;
+            Left = left;
+            Top = top;
             return;
         }
 
