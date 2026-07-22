@@ -29,6 +29,11 @@ internal static class WindowChrome
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+
+    private const uint SwpNoMove = 0x0002, SwpNoSize = 0x0001, SwpNoZOrder = 0x0004, SwpFrameChanged = 0x0020;
+
     public static void Apply(Window window, bool dark)
     {
         var hwnd = new WindowInteropHelper(window).Handle;
@@ -38,8 +43,11 @@ internal static class WindowChrome
         if (DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref flag, sizeof(int)) != 0)
             DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkModeOld, ref flag, sizeof(int));
 
-        // The caption only repaints on the next activation; nudge it so the change shows at once.
-        if (window.IsVisible) Nudge(window);
+        // The attribute takes effect but the caption doesn't repaint until the frame is
+        // recalculated. A width nudge often missed it (the caption kept its old colour after a
+        // theme switch); a SWP_FRAMECHANGED forces the non-client area to redraw right now.
+        if (window.IsVisible)
+            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoZOrder | SwpFrameChanged);
     }
 
     /// <summary>
@@ -69,15 +77,6 @@ internal static class WindowChrome
     /// <summary>Whether this Windows build supports the Mica material (Win11 22000+).</summary>
     public static bool SupportsMica =>
         Environment.OSVersion.Version.Major >= 10 && Environment.OSVersion.Version.Build >= 22000;
-
-    private static void Nudge(Window window)
-    {
-        // A no-op resize forces the non-client area to redraw immediately.
-        var w = window.Width;
-        if (double.IsNaN(w)) return;
-        window.Width = w + 0.1;
-        window.Width = w;
-    }
 
     /// <summary>Re-tints every open window — used when the theme is toggled live.</summary>
     public static void ApplyToAll(bool dark)

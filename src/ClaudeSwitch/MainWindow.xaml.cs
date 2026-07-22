@@ -116,9 +116,18 @@ public partial class MainWindow : Window
     {
         var mica = App.Settings.Translucent && WindowChrome.SupportsMica;
 
-        Background = mica
-            ? System.Windows.Media.Brushes.Transparent
-            : (System.Windows.Media.Brush)FindResource("Bg");
+        if (mica)
+        {
+            Background = System.Windows.Media.Brushes.Transparent;
+        }
+        else
+        {
+            // SetResourceReference, not FindResource: a plain assignment captures the current Bg
+            // brush as a static value and severs the DynamicResource binding, so the window would
+            // keep the theme it had when this ran — which is exactly why the background stayed
+            // dark after switching to light.
+            SetResourceReference(BackgroundProperty, "Bg");
+        }
 
         WindowChrome.ApplyBackdrop(this, mica);
     }
