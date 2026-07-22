@@ -78,7 +78,14 @@ public partial class MainWindow : Window
         {
             Interval = TimeSpan.FromMinutes(10),
         };
-        _usageTimer.Tick += (_, _) => _ = RefreshAllAccountsAsync();
+        _usageTimer.Tick += (_, _) =>
+        {
+            _ = RefreshAllAccountsAsync();
+
+            // Piggybacked rather than given its own timer: this app sits in the tray for days,
+            // and an instance that only checked at startup would never see a release at all.
+            _ = App.CheckForUpdatesAsync();
+        };
         _usageTimer.Start();
     }
 

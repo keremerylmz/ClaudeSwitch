@@ -121,13 +121,33 @@ public partial class App : Application
         // Keep the Run key in step with the setting (e.g. if the exe was moved).
         if (Settings.StartWithWindows) StartupManager.Set(true);
 
-        if (Settings.CheckForUpdates) _ = CheckForUpdatesAsync();
+        _ = CheckForUpdatesAsync();
     }
 
-    private static async Task CheckForUpdatesAsync()
+    /// <summary>
+    /// Floor between update checks. This app lives in the tray for days at a time, so checking
+    /// only at startup means a long-running instance never learns about a release at all — but
+    /// GitHub rate-limits anonymous callers, so it is polled sparingly.
+    /// </summary>
+    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromMinutes(15);
+
+    private static DateTimeOffset _lastUpdateCheck = DateTimeOffset.MinValue;
+    private static bool _updateOffered;
+
+    /// <summary>
+    /// Checks for a newer release unless one was already found or we checked recently.
+    /// Called at startup, on the periodic refresh, and whenever the window is brought up.
+    /// </summary>
+    internal static async Task CheckForUpdatesAsync()
     {
+        if (!Settings.CheckForUpdates || _updateOffered) return;
+        if (DateTimeOffset.UtcNow - _lastUpdateCheck < UpdateCheckInterval) return;
+        _lastUpdateCheck = DateTimeOffset.UtcNow;
+
         var release = await UpdateChecker.CheckAsync();
         if (release is null) return;
+
+        _updateOffered = true;   // the banner stays put; no need to keep asking
 
         // Both surfaces: the balloon reaches someone whose window is closed, the banner is what
         // they act on. Clicking the balloon brings the window up so the button is right there.
@@ -143,6 +163,10 @@ public partial class App : Application
         if (MainView.WindowState == WindowState.Minimized) MainView.WindowState = WindowState.Normal;
         MainView.Activate();
         MainView.Refresh();
+
+        // Opening the window is the moment an update is worth knowing about — and the throttle
+        // inside means this costs nothing when it was just checked.
+        _ = CheckForUpdatesAsync();
     }
 
     /// <summary>Brings the window up and fades the preferences layer in over it.</summary>
