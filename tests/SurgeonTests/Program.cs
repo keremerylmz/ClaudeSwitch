@@ -138,6 +138,25 @@ Check("removing ours keeps the user's StopFailure matcher",
     SettingsEditor.RemoveLimitHook(coexist) == userStop,
     SettingsEditor.RemoveLimitHook(coexist));
 
+// ---- update version comparison -------------------------------------------
+// This regressed once already: splitting on '.' and '-' together and taking [0] left only the
+// major number, so every minor and patch release compared equal and no user was ever offered
+// an update. The patch-level cases below are the ones that were broken.
+
+Console.WriteLine("\n=== Update version compare ===");
+
+Check("newer patch is an update", UpdateChecker.IsNewer("v0.3.1", "0.3.0"));
+Check("newer minor is an update", UpdateChecker.IsNewer("v0.4.0", "0.3.9"));
+Check("newer major is an update", UpdateChecker.IsNewer("v1.0.0", "0.9.9"));
+Check("same version is not an update", !UpdateChecker.IsNewer("v0.3.1", "0.3.1"));
+Check("older patch is not an update", !UpdateChecker.IsNewer("v0.3.0", "0.3.1"));
+Check("older minor is not an update", !UpdateChecker.IsNewer("v0.2.9", "0.3.0"));
+Check("tolerates a missing 'v'", UpdateChecker.IsNewer("0.3.2", "0.3.1"));
+Check("ignores a prerelease suffix", UpdateChecker.IsNewer("v0.4.0-beta.1", "0.3.9"));
+Check("prerelease of the same version is not newer", !UpdateChecker.IsNewer("v0.3.1-rc1", "0.3.1"));
+Check("short tags are padded", UpdateChecker.IsNewer("v1.1", "1.0.9"));
+Check("garbage never claims to be newer", !UpdateChecker.IsNewer("banana", "0.3.1"));
+
 // ---- real-file test ------------------------------------------------------
 
 if (args.Length > 0 && File.Exists(args[0]))

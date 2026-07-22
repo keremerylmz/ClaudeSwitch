@@ -11,7 +11,7 @@
     <AssemblyName>ClaudeSwitch</AssemblyName>
     <RootNamespace>ClaudeSwitch</RootNamespace>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
     <Product>ClaudeSwitch</Product>
     <Description>One-click Claude Code account switcher for CLI and VS Code</Description>
 
@@ -37,6 +37,13 @@
          unconditionally breaks the framework-dependent ("lite") build with NETSDK1176. -->
     <EnableCompressionInSingleFile Condition="'$(SelfContained)' == 'true'">true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
+
+    <!--
+      The in-app updater must download the asset matching THIS build: handing a lite install the
+      self-contained binary (or the reverse) produces an exe that won't start. Decided here rather
+      than sniffed at runtime, because users rename their exe.
+    -->
+    <DefineConstants Condition="'$(SelfContained)' == 'true'">$(DefineConstants);SELF_CONTAINED</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

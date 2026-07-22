@@ -103,6 +103,10 @@ public partial class App : Application
         // so they get cleared here instead.
         PrivateBrowser.SweepOldProfiles();
 
+        // If we just restarted into a freshly installed build, the previous exe is sitting next
+        // to us as ".old" — deletable now that nothing is running from it.
+        Updater.SweepOldBuilds();
+
         MainView = new MainWindow();
         Tray = new TrayIcon();
 
@@ -122,9 +126,13 @@ public partial class App : Application
 
     private static async Task CheckForUpdatesAsync()
     {
-        var latest = await UpdateChecker.CheckAsync();
-        if (latest is not null)
-            Tray?.NotifyUpdate("ClaudeSwitch", Loc.T("update.available", latest), UpdateChecker.ReleasesPage);
+        var release = await UpdateChecker.CheckAsync();
+        if (release is null) return;
+
+        // Both surfaces: the balloon reaches someone whose window is closed, the banner is what
+        // they act on. Clicking the balloon brings the window up so the button is right there.
+        MainView?.OfferUpdate(release);
+        Tray?.NotifyUpdate("ClaudeSwitch", Loc.T("update.available", release.Tag), showMain: true);
     }
 
     /// <summary>Brings the window back from the tray.</summary>

@@ -41,17 +41,8 @@ internal sealed class TrayIcon : IDisposable
             if (e.Button == MouseButtons.Left && App.Settings.TrayLeftClickMenu)
                 ShowMenuAtCursor();
         };
-        _icon.BalloonTipClicked += (_, _) =>
-        {
-            if (_pendingUpdateUrl is { } url)
-            {
-                try
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-                }
-                catch (Exception) { }
-            }
-        };
+        // An update balloon is only useful if it lands you on the button that installs it.
+        _icon.BalloonTipClicked += (_, _) => { if (_balloonOpensMain) App.ShowMain(); };
     }
 
     /// <summary>
@@ -229,19 +220,19 @@ internal sealed class TrayIcon : IDisposable
 
     public void Notify(string title, string message)
     {
-        _pendingUpdateUrl = null;
+        _balloonOpensMain = false;
         _icon.BalloonTipTitle = title;
         _icon.BalloonTipText = message;
         _icon.BalloonTipIcon = ToolTipIcon.Info;
         _icon.ShowBalloonTip(3000);
     }
 
-    private string? _pendingUpdateUrl;
+    private bool _balloonOpensMain;
 
-    /// <summary>Shows an update balloon whose click opens the releases page.</summary>
-    public void NotifyUpdate(string title, string message, string url)
+    /// <summary>Shows an update balloon whose click brings up the window and its Update button.</summary>
+    public void NotifyUpdate(string title, string message, bool showMain)
     {
-        _pendingUpdateUrl = url;
+        _balloonOpensMain = showMain;
         _icon.BalloonTipTitle = title;
         _icon.BalloonTipText = message;
         _icon.BalloonTipIcon = ToolTipIcon.Info;

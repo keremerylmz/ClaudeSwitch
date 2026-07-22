@@ -635,6 +635,129 @@ public partial class MainWindow : Window
         }
     }
 
+    // ── in-app update ───────────────────────────────────────────────────────
+
+    private UpdateChecker.Release? _update;
+    private string? _stagedUpdate;
+    private bool _downloading;
+
+    /// <summary>Surfaces a newer release in the footer. Called by the startup check.</summary>
+    internal void OfferUpdate(UpdateChecker.Release release)
+    {
+        _update = release;
+        UpdateTitle.Text = Loc.T("update.title", release.Tag.TrimStart('v', 'V'));
+        UpdateBody.Text = Loc.T("update.body");
+        UpdateButton.Content = Loc.T("update.action");
+        UpdateButton.IsEnabled = true;
+        UpdateProgressTrack.Visibility = Visibility.Collapsed;
+        UpdateBanner.Visibility = Visibility.Visible;
+    }
+
+    private async void UpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_downloading) return;
+
+        // The one button walks three states: download → restart → (if anything went wrong)
+        // hand off to the release page, which is always a way forward.
+        if (_stagedUpdate is not null) { RestartIntoNewBuild(); return; }
+        if (_update is null) { OpenReleasesPage(); return; }
+
+        _downloading = true;
+        UpdateButton.IsEnabled = false;
+        UpdateBody.Text = Loc.T("update.downloading", 0);
+        UpdateProgressTrack.Visibility = Visibility.Visible;
+        SetUpdateProgress(0);
+
+        var progress = new Progress<double>(fraction =>
+        {
+            SetUpdateProgress(fraction);
+            UpdateBody.Text = Loc.T("update.downloading", (int)(fraction * 100));
+        });
+
+        try
+        {
+            var staged = await Updater.DownloadAsync(_update, progress, CancellationToken.None);
+
+            if (staged is null)
+            {
+                // Verification failing is the interesting case: we would rather leave the user on
+                // a working build and send them to the release page than install something we
+                // could not vouch for.
+                UpdateBody.Text = Loc.T("update.failed");
+                UpdateProgressTrack.Visibility = Visibility.Collapsed;
+                UpdateButton.Content = Loc.T("update.openPage");
+                UpdateButton.IsEnabled = true;
+                _update = null;
+                return;
+            }
+
+            _stagedUpdate = staged;
+            UpdateBody.Text = Loc.T("update.ready");
+            UpdateButton.Content = Loc.T("update.restart");
+            UpdateButton.IsEnabled = true;
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("Update", ex);
+            UpdateBody.Text = Loc.T("update.failed");
+            UpdateButton.Content = Loc.T("update.openPage");
+            UpdateButton.IsEnabled = true;
+            _update = null;
+        }
+        finally
+        {
+            _downloading = false;
+        }
+    }
+
+    private void SetUpdateProgress(double fraction)
+    {
+        var pct = Math.Clamp(fraction, 0, 1) * 100;
+        UpdateDone.Width = new GridLength(pct, GridUnitType.Star);
+        UpdateLeft.Width = new GridLength(100 - pct, GridUnitType.Star);
+    }
+
+    private void RestartIntoNewBuild()
+    {
+        if (_stagedUpdate is null) { OpenReleasesPage(); return; }
+
+        UpdateButton.IsEnabled = false;
+        UpdateBody.Text = Loc.T("update.restarting");
+
+        switch (Updater.ApplyAndRestart(_stagedUpdate))
+        {
+            case Updater.Result.Ok:
+                App.RequestShutdown();   // the replacement is already starting
+                break;
+
+            case Updater.Result.NotWritable:
+                UpdateBody.Text = Loc.T("update.notWritable");
+                UpdateButton.Content = Loc.T("update.openPage");
+                UpdateButton.IsEnabled = true;
+                _stagedUpdate = null;
+                break;
+
+            default:
+                UpdateBody.Text = Loc.T("update.failed");
+                UpdateButton.Content = Loc.T("update.openPage");
+                UpdateButton.IsEnabled = true;
+                _stagedUpdate = null;
+                break;
+        }
+    }
+
+    private static void OpenReleasesPage()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(UpdateChecker.ReleasesPage) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
+        {
+        }
+    }
+
     // ── switching ───────────────────────────────────────────────────────────
 
     /// <summary>

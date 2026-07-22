@@ -89,7 +89,9 @@ single click updates your terminal **and** your editor at once.
   line, and get told the instant a session is rate-limited (see [below](#inside-claude-code)).
 - **Global hotkey** (`Ctrl+Alt+S`) cycles accounts from anywhere, and **Start with Windows** keeps
   it in your tray.
-- **Auto-update check** notifies you when a newer release is out.
+- **Updates itself.** When a newer release is out, a banner offers it: one click downloads the
+  build in the background with a progress bar, then restarts into it. No browser, no re-download,
+  nothing to delete (see [below](#how-updating-works)).
 - **Light, dark, or follow Windows**, with a smooth crossfade when it changes — plus a **compact
   mode** that hides the usage panels for a denser list, per-account colours, a sort order that
   suits you, and a window that reopens where you left it.
@@ -165,6 +167,27 @@ How it behaves:
 > ⚠️ This endpoint is **not officially documented** (Claude Code uses it internally). Anthropic could
 > change it without notice; if that happens the percentages simply disappear while the rest of the
 > app keeps working.
+
+---
+
+## How updating works
+
+ClaudeSwitch checks GitHub on startup. If there's a newer release, a banner appears in the app:
+**Update** downloads it with a progress bar, then the same button becomes **Restart**.
+
+- It downloads **the asset matching your build** — standalone or lite. That's decided at compile
+  time, not guessed from the filename, because handing a lite install the self-contained binary
+  produces an exe that won't start.
+- The download is **verified before anything is replaced**: the size must match what the release
+  announced, the file must start with `MZ`, and its SHA-256 must match the `SHA256SUMS.txt`
+  published with the release. A failed check leaves your working build alone and offers the
+  release page instead.
+- The swap uses the fact that Windows lets you **rename** a running executable even though it
+  won't let you overwrite one: the live exe moves to `.old`, the new one takes its place, and the
+  app relaunches from the same path. If the second step fails the first is rolled back, so you're
+  never left without a working binary. The `.old` file is deleted on the next start.
+- If ClaudeSwitch lives somewhere it can't write to (Program Files, say), it says so and points
+  you at the release page rather than failing quietly.
 
 ---
 

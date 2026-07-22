@@ -18,6 +18,9 @@
     <!-- Edits ~/.claude/settings.json (mostly the user's permission rules), so it is held to
          the same "never corrupt a real file" bar as JsonSurgeon. -->
     <Compile Include="..\..\src\ClaudeSwitch\Core\SettingsEditor.cs" Link="SettingsEditor.cs" />
+    <!-- Version comparison decides whether anyone is ever offered an update at all; a silent
+         bug here is invisible until nobody has upgraded for months. -->
+    <Compile Include="..\..\src\ClaudeSwitch\Core\UpdateChecker.cs" Link="UpdateChecker.cs" />
   </ItemGroup>
 
 </Project>
