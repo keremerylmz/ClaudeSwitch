@@ -277,5 +277,16 @@
                 </Grid>
             </StackPanel>
         </Border>
+
+        <!-- ═══════════════════ Settings layer ═══════════════════ -->
+        <!-- Covers the whole window and fades in over it, so opening preferences never costs
+             the user a second window to find, move, and close. Built on first use. -->
+        <Grid x:Name="SettingsLayer" Grid.RowSpan="3"
+              Visibility="Collapsed" Opacity="0"
+              Background="{DynamicResource Bg}">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="SettingsShift" Y="10"/>
+            </Grid.RenderTransform>
+        </Grid>
     </Grid>
 </Window>

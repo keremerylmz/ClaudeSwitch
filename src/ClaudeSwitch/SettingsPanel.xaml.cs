@@ -6,16 +6,22 @@ using Cursors = System.Windows.Input.Cursors;
 namespace ClaudeSwitch;
 
 /// <summary>
-/// Preferences. Every change applies immediately and persists — there is no separate
-/// "apply" step, and nothing here can leave the app in a half-configured state.
+/// Preferences, shown as a layer over the main view rather than in a window of its own —
+/// a separate window for eight toggles reads as a context switch the task doesn't deserve.
+///
+/// Every change applies immediately and persists; there is no separate "apply" step, and
+/// nothing here can leave the app in a half-configured state.
 /// </summary>
-public partial class SettingsWindow : Window
+public partial class SettingsPanel : System.Windows.Controls.UserControl
 {
     private readonly AppSettings _settings;
     private readonly Action _onChanged;
     private bool _loading;
 
-    internal SettingsWindow(AppSettings settings, Action onChanged)
+    /// <summary>Raised by the back arrow and the Done button; the host plays the fade-out.</summary>
+    public event Action? CloseRequested;
+
+    internal SettingsPanel(AppSettings settings, Action onChanged)
     {
         InitializeComponent();
         _settings = settings;
@@ -41,8 +47,6 @@ public partial class SettingsWindow : Window
 
         BuildPillLists();
         Localize();
-
-        SourceInitialized += (_, _) => WindowChrome.Apply(this, ThemeManager.IsDark);
     }
 
     // ── appearance ──────────────────────────────────────────────────────────
@@ -195,7 +199,7 @@ public partial class SettingsWindow : Window
         catch (Exception ex)
         {
             CrashLog.Write("Integration", ex);
-            MessageBox.Show(this, ex.Message, Loc.T("settings.integration"),
+            MessageBox.Show(Window.GetWindow(this)!, ex.Message, Loc.T("settings.integration"),
                 MessageBoxButton.OK, MessageBoxImage.Warning);
 
             _loading = true;
@@ -288,11 +292,11 @@ public partial class SettingsWindow : Window
         _onChanged();
     }
 
-    /// <summary>Applies the current language to this window's own labels.</summary>
+    /// <summary>Applies the current language to this panel's own labels.</summary>
     private void Localize()
     {
-        Title = Loc.T("settings.title");
         TitleText.Text = Loc.T("settings.title");
+        BackButton.ToolTip = Loc.T("settings.done");
 
         AppearanceHeader.Text = Loc.T("settings.appearance");
         ThemeTitle.Text = Loc.T("settings.theme");
@@ -337,5 +341,5 @@ public partial class SettingsWindow : Window
         DoneButton.Content = Loc.T("settings.done");
     }
 
-    private void Close_Click(object sender, RoutedEventArgs e) => Close();
+    private void Close_Click(object sender, RoutedEventArgs e) => CloseRequested?.Invoke();
 }

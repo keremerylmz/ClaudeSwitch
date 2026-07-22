@@ -96,7 +96,69 @@ public partial class MainWindow : Window
         Refresh();   // rebuilds items so per-card text (Switch/Active/5-hour/7-day) re-localizes
     }
 
-    private void SettingsButton_Click(object sender, RoutedEventArgs e) => App.OpenSettings();
+    private void SettingsButton_Click(object sender, RoutedEventArgs e) => ShowSettings();
+
+    // ── settings layer ──────────────────────────────────────────────────────
+
+    private SettingsPanel? _settingsPanel;
+
+    /// <summary>True while the settings layer is on screen (or fading in).</summary>
+    public bool SettingsOpen => SettingsLayer.Visibility == Visibility.Visible;
+
+    private static readonly TimeSpan LayerFade = TimeSpan.FromMilliseconds(180);
+
+    /// <summary>Fades the preferences layer in over the account list.</summary>
+    public void ShowSettings()
+    {
+        if (SettingsOpen) return;
+
+        // Built on first use, not at startup: most sessions never open it, and this is a tray
+        // app whose whole point is staying small.
+        if (_settingsPanel is null)
+        {
+            _settingsPanel = new SettingsPanel(App.Settings, () => Refresh());
+            _settingsPanel.CloseRequested += HideSettings;
+            SettingsLayer.Children.Add(_settingsPanel);
+        }
+
+        SettingsLayer.Visibility = Visibility.Visible;
+        Animate(to: 1, shiftTo: 0, onDone: null);
+    }
+
+    public void HideSettings()
+    {
+        if (!SettingsOpen) return;
+        Animate(to: 0, shiftTo: 10, onDone: () => SettingsLayer.Visibility = Visibility.Collapsed);
+    }
+
+    private void Animate(double to, double shiftTo, Action? onDone)
+    {
+        var ease = new System.Windows.Media.Animation.CubicEase
+        {
+            EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut,
+        };
+
+        var fade = new System.Windows.Media.Animation.DoubleAnimation(to, LayerFade) { EasingFunction = ease };
+        if (onDone is not null) fade.Completed += (_, _) => onDone();
+
+        var slide = new System.Windows.Media.Animation.DoubleAnimation(shiftTo, LayerFade) { EasingFunction = ease };
+
+        SettingsLayer.BeginAnimation(OpacityProperty, fade);
+        SettingsShift.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slide);
+    }
+
+    /// <summary>Escape backs out of settings — the layer has no title bar to close.</summary>
+    protected override void OnPreviewKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Escape && SettingsOpen)
+        {
+            HideSettings();
+            e.Handled = true;
+            return;
+        }
+
+        base.OnPreviewKeyDown(e);
+    }
 
     /// <summary>Registers or releases the global hotkey to match the current setting.</summary>
     public void ApplyHotkeySetting()

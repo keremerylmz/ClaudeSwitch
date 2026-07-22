@@ -1,18 +1,14 @@
-<Window x:Class="ClaudeSwitch.SettingsWindow"
+<UserControl x:Class="ClaudeSwitch.SettingsPanel"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Width="420" Height="640" MinHeight="380"
         Background="{DynamicResource Bg}"
         FontFamily="{StaticResource UiFont}"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="CanResize"
-        ShowInTaskbar="False"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
 
-    <Window.Resources>
+    <UserControl.Resources>
         <!-- One settings row: title, description, and a control on the right. -->
         <Style x:Key="RowText" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontStrong}"/>
@@ -37,7 +33,7 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="14,4"/>
         </Style>
-    </Window.Resources>
+    </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -46,13 +42,19 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
+        <!-- Header: matches the main view's, with a back affordance in place of the gear. -->
         <Border Grid.Row="0" Background="{DynamicResource Surface}"
                 BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
-                Padding="20,15">
-            <TextBlock x:Name="TitleText" Text="Settings" VerticalAlignment="Center"
-                       FontSize="{StaticResource FontTitle}" FontWeight="SemiBold"
-                       Foreground="{DynamicResource Text}"/>
+                Padding="12,15,20,15">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="BackButton" Style="{StaticResource IconButton}"
+                        Content="&#x2190;" FontSize="17" VerticalAlignment="Center"
+                        Click="Close_Click"/>
+                <TextBlock x:Name="TitleText" Text="Settings" VerticalAlignment="Center"
+                           Margin="6,0,0,0"
+                           FontSize="{StaticResource FontTitle}" FontWeight="SemiBold"
+                           Foreground="{DynamicResource Text}"/>
+            </StackPanel>
         </Border>
 
         <ScrollViewer Grid.Row="1" Style="{StaticResource ListScroll}">
@@ -284,4 +286,4 @@
                     HorizontalAlignment="Right" Padding="22,9" Click="Close_Click"/>
         </Border>
     </Grid>
-</Window>
+</UserControl>

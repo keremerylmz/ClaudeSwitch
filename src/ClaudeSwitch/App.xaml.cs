@@ -137,16 +137,12 @@ public partial class App : Application
         MainView.Refresh();
     }
 
-    /// <summary>Opens the preferences window, wired to re-render the main window on change.</summary>
+    /// <summary>Brings the window up and fades the preferences layer in over it.</summary>
     internal static void OpenSettings()
     {
         if (MainView is null) return;
-
-        var existing = Current.Windows.OfType<SettingsWindow>().FirstOrDefault();
-        if (existing is not null) { existing.Activate(); return; }
-
-        var settings = new SettingsWindow(Settings, () => MainView?.Refresh()) { Owner = MainView };
-        settings.Show();
+        ShowMain();
+        MainView.ShowSettings();
     }
 
     internal static void RequestShutdown()
