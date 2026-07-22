@@ -47,8 +47,11 @@
                 BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
                 Padding="12,15,20,15">
             <StackPanel Orientation="Horizontal">
+                <!-- U+2190 renders hairline-thin next to the SemiBold title beside it; a touch
+                     of weight is what makes it read as a control rather than a stray glyph. -->
                 <Button x:Name="BackButton" Style="{StaticResource IconButton}"
-                        Content="&#x2190;" FontSize="17" VerticalAlignment="Center"
+                        Content="&#x2190;" FontSize="18" FontWeight="SemiBold"
+                        VerticalAlignment="Center"
                         Click="Close_Click"/>
                 <TextBlock x:Name="TitleText" Text="Settings" VerticalAlignment="Center"
                            Margin="6,0,0,0"
