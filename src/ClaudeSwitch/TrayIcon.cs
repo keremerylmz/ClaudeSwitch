@@ -66,7 +66,7 @@ internal sealed class TrayIcon : IDisposable
     /// </summary>
     public void SetActiveUsage(double? fiveHourPercent, string? accountName)
     {
-        var name = accountName ?? "ClaudeSwitch";
+        var name = Redactor.Mask(accountName) is { Length: > 0 } masked ? masked : "ClaudeSwitch";
         var tip = fiveHourPercent is { } p
             ? $"{name} — {(int)p}% (5h)"
             : name;
@@ -179,9 +179,8 @@ internal sealed class TrayIcon : IDisposable
         {
             foreach (var account in accounts)
             {
-                var label = account.IsActive
-                    ? $"● {account.DisplayName}"
-                    : $"    {account.DisplayName}";
+                var name = Redactor.Mask(account.DisplayName);
+                var label = account.IsActive ? $"● {name}" : $"    {name}";
 
                 // The point of the menu is picking a target without opening the window, which
                 // needs the numbers you would have opened the window to read.
@@ -214,7 +213,7 @@ internal sealed class TrayIcon : IDisposable
 
         var active = accounts.FirstOrDefault(a => a.IsActive);
         // NotifyIcon.Text is capped at 63 characters by the shell.
-        var tip = active is null ? "ClaudeSwitch" : $"ClaudeSwitch — {active.DisplayName}";
+        var tip = active is null ? "ClaudeSwitch" : $"ClaudeSwitch — {Redactor.Mask(active.DisplayName)}";
         _icon.Text = tip.Length > 62 ? tip[..62] : tip;
     }
 

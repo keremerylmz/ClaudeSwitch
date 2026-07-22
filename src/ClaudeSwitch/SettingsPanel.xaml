@@ -78,6 +78,31 @@
                             </ItemsControl>
                         </StackPanel>
 
+                        <Border x:Name="TranslucentDivider" Height="1" Background="{DynamicResource Border}"/>
+
+                        <!-- Only meaningful on Windows 11; hidden entirely on Win10. -->
+                        <Grid x:Name="TranslucentRow" Height="60">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="TranslucentTitle" Text="Translucent background" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="TranslucentDesc" Style="{StaticResource RowDesc}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="TranslucentToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="TranslucentToggle_Changed" Unchecked="TranslucentToggle_Changed"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="60">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="RingsTitle" Text="Usage rings" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="RingsDesc" Style="{StaticResource RowDesc}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="RingsToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="RingsToggle_Changed" Unchecked="RingsToggle_Changed"/>
+                        </Grid>
+
                         <Border Height="1" Background="{DynamicResource Border}"/>
 
                         <Grid Height="54">
@@ -88,6 +113,18 @@
                             <CheckBox x:Name="CompactToggle" Style="{StaticResource ToggleSwitch}"
                                       HorizontalAlignment="Right" VerticalAlignment="Center"
                                       Checked="CompactToggle_Changed" Unchecked="CompactToggle_Changed"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="60">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="RedactTitle" Text="Blur emails" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="RedactDesc" Style="{StaticResource RowDesc}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="RedactToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="RedactToggle_Changed" Unchecked="RedactToggle_Changed"/>
                         </Grid>
                     </StackPanel>
                 </Border>

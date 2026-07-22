@@ -68,6 +68,7 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) =>
         {
             WindowChrome.Apply(this, ThemeManager.IsDark);
+            ApplyBackdrop();
             ApplyHotkeySetting();
         };
 
@@ -106,7 +107,25 @@ public partial class MainWindow : Window
         Refresh();
     }
 
+    /// <summary>
+    /// Puts the window on Mica when the setting is on and the OS supports it. The window's own
+    /// background has to go transparent for the material to show — so when Mica is NOT in play,
+    /// the themed opaque background is restored, otherwise the content would float on nothing.
+    /// </summary>
+    public void ApplyBackdrop()
+    {
+        var mica = App.Settings.Translucent && WindowChrome.SupportsMica;
+
+        Background = mica
+            ? System.Windows.Media.Brushes.Transparent
+            : (System.Windows.Media.Brush)FindResource("Bg");
+
+        WindowChrome.ApplyBackdrop(this, mica);
+    }
+
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => ShowSettings();
+
+    private void MiniButton_Click(object sender, RoutedEventArgs e) => App.EnterMiniMode();
 
     // ── settings layer ──────────────────────────────────────────────────────
 
@@ -157,17 +176,129 @@ public partial class MainWindow : Window
         SettingsShift.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slide);
     }
 
-    /// <summary>Escape backs out of settings — the layer has no title bar to close.</summary>
+    /// <summary>Escape backs out of an open layer; Ctrl+K opens the command palette.</summary>
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
-        if (e.Key == System.Windows.Input.Key.Escape && SettingsOpen)
+        if (e.Key == System.Windows.Input.Key.Escape)
         {
-            HideSettings();
+            if (PaletteOpen) { HidePalette(); e.Handled = true; return; }
+            if (SettingsOpen) { HideSettings(); e.Handled = true; return; }
+        }
+
+        if (e.Key == System.Windows.Input.Key.K &&
+            (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0 &&
+            !SettingsOpen)
+        {
+            if (PaletteOpen) HidePalette(); else ShowPalette();
             e.Handled = true;
             return;
         }
 
         base.OnPreviewKeyDown(e);
+    }
+
+    // ── command palette ──────────────────────────────────────────────────────
+
+    public bool PaletteOpen => PaletteLayer.Visibility == Visibility.Visible;
+
+    /// <summary>Fades in the type-to-switch overlay, focused and pre-filled with every account.</summary>
+    public void ShowPalette()
+    {
+        if (_items.Count == 0) return;
+
+        PaletteBox.Text = "";
+        FilterPalette("");
+        PaletteLayer.Visibility = Visibility.Visible;
+        AnimateLayer(PaletteLayer, PaletteShift, to: 1, shiftTo: 0, onDone: null);
+
+        PaletteBox.Focus();
+    }
+
+    public void HidePalette()
+    {
+        if (!PaletteOpen) return;
+        AnimateLayer(PaletteLayer, PaletteShift, to: 0, shiftTo: -8,
+            onDone: () => PaletteLayer.Visibility = Visibility.Collapsed);
+    }
+
+    private void FilterPalette(string query)
+    {
+        query = query.Trim();
+
+        // Match on the REAL name/email, not the redacted label — you can still find an account
+        // by typing it even while the screen is masked for a stream.
+        var matches = string.IsNullOrEmpty(query)
+            ? _items.AsEnumerable()
+            : _items.Where(i =>
+                i.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                i.Profile.Email.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+        PaletteList.ItemsSource = matches.ToList();
+        if (PaletteList.Items.Count > 0) PaletteList.SelectedIndex = 0;
+    }
+
+    private void PaletteBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        => FilterPalette(PaletteBox.Text);
+
+    private void PaletteBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case System.Windows.Input.Key.Down:
+                Move(1); e.Handled = true; break;
+            case System.Windows.Input.Key.Up:
+                Move(-1); e.Handled = true; break;
+            case System.Windows.Input.Key.Enter:
+                CommitPalette(); e.Handled = true; break;
+        }
+
+        void Move(int by)
+        {
+            var count = PaletteList.Items.Count;
+            if (count == 0) return;
+            PaletteList.SelectedIndex = (PaletteList.SelectedIndex + by + count) % count;
+            PaletteList.ScrollIntoView(PaletteList.SelectedItem);
+        }
+    }
+
+    private void PaletteList_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (PaletteList.SelectedItem is not null) CommitPalette();
+    }
+
+    private void PaletteBackdrop_Click(object sender, MouseButtonEventArgs e)
+    {
+        // Only a click on the dimmed backdrop itself dismisses; clicks inside the card bubble up
+        // here too, so ignore anything that landed on a real control.
+        if (ReferenceEquals(e.OriginalSource, PaletteLayer)) HidePalette();
+    }
+
+    private void CommitPalette()
+    {
+        var target = PaletteList.SelectedItem as AccountItem;
+        HidePalette();
+        if (target is not null && !target.IsActive) SwitchTo(target.Profile);
+    }
+
+    /// <summary>Shared fade+slide for the settings and palette overlays.</summary>
+    private static void AnimateLayer(UIElement layer, System.Windows.Media.TranslateTransform shift,
+                                     double to, double shiftTo, Action? onDone)
+    {
+        var ease = new System.Windows.Media.Animation.CubicEase
+        {
+            EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut,
+        };
+        var fade = new System.Windows.Media.Animation.DoubleAnimation(to, TimeSpan.FromMilliseconds(150))
+        {
+            EasingFunction = ease,
+        };
+        if (onDone is not null) fade.Completed += (_, _) => onDone();
+        var slide = new System.Windows.Media.Animation.DoubleAnimation(shiftTo, TimeSpan.FromMilliseconds(150))
+        {
+            EasingFunction = ease,
+        };
+        layer.BeginAnimation(OpacityProperty, fade);
+        shift.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slide);
     }
 
     /// <summary>Registers or releases the global hotkey to match the current setting.</summary>
@@ -282,7 +413,7 @@ public partial class MainWindow : Window
 
         ActiveAccountText.Text = activeEmail is null
             ? Loc.T("app.notSignedIn")
-            : Loc.T("app.activePrefix", activeEmail);
+            : Loc.T("app.activePrefix", Redactor.Mask(activeEmail));
 
         // An account that is logged in but not yet saved is the main thing a new user needs to do.
         var currentIsSaved = _items.Any(i => i.IsActive);
@@ -293,9 +424,13 @@ public partial class MainWindow : Window
             _items.FirstOrDefault(i => i.IsActive)?.DisplayName ?? activeEmail ?? "");
 
         App.Tray?.Rebuild(_items.ToList());
+        App.Mini?.UpdateFrom(ActiveItem);
 
         _ = RefreshUsageAsync(force: false);
     }
+
+    /// <summary>The account Claude Code is currently using, or null. Drives the tray and mini pill.</summary>
+    internal AccountItem? ActiveItem => _items.FirstOrDefault(i => i.IsActive);
 
     /// <summary>
     /// Orders the list the way the user asked. "Recent" is the store's own order; the point of
@@ -444,6 +579,7 @@ public partial class MainWindow : Window
         var active = _items.FirstOrDefault(i => i.IsActive);
         App.Tray?.SetActiveUsage(active is { HasUsage: true } ? active.FiveHourValue : (double?)null,
                                  active?.DisplayName);
+        App.Mini?.UpdateFrom(active);
 
         if (active is not { HasUsage: true }) return;
         var pct = active.FiveHourValue;
@@ -1309,9 +1445,17 @@ internal sealed class AccountItem : INotifyPropertyChanged
 
     public Profile Profile { get; }
 
+    /// <summary>The real name, used for switching, ranking, and notifications.</summary>
     public string DisplayName => Profile.DisplayName;
+
+    /// <summary>What the card actually shows — masked when redaction is on. Bind the UI to this.</summary>
+    public string DisplayLabel => Redactor.Mask(Profile.DisplayName);
+
     public string Initial => Profile.Initial;
     public string PlanBadge => Profile.PlanBadge;
+
+    /// <summary>Right-aligned hint in the command palette: active state or plan.</summary>
+    public string PaletteHint => IsActive ? Loc.T("card.active") : PlanBadge == "—" ? "" : PlanBadge;
 
     private bool _needsReauth;
 
@@ -1343,14 +1487,14 @@ internal sealed class AccountItem : INotifyPropertyChanged
 
             var parts = new List<string>();
             if (!string.IsNullOrWhiteSpace(Profile.Email) && Profile.Email != DisplayName)
-                parts.Add(Profile.Email);
+                parts.Add(Redactor.Mask(Profile.Email));
 
             // Personal accounts get an auto-generated "<email>'s Organization" that just
             // repeats the email — noise, so leave it out.
             var org = Profile.OrganizationName;
             if (!string.IsNullOrWhiteSpace(org) &&
                 !org.StartsWith(Profile.Email, StringComparison.OrdinalIgnoreCase))
-                parts.Add(org);
+                parts.Add(Redactor.Mask(org));
 
             if (parts.Count == 0) parts.Add(Profile.StatusText);
             return string.Join(" · ", parts);
@@ -1380,9 +1524,10 @@ internal sealed class AccountItem : INotifyPropertyChanged
     // ── avatar ───────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// The account's own colour when it has one, the accent when it's active, otherwise a
-    /// neutral chip. A chosen colour outranks the active tint so the colour you assigned is
-    /// always the thing you recognise the row by.
+    /// The avatar's fill. Priority: a colour the user pinned, then the accent for the active
+    /// account, then an automatic colour derived from the email so even untouched accounts are
+    /// distinct. A pinned colour outranks the active tint so the colour you chose is always the
+    /// thing you recognise the row by.
     /// </summary>
     public System.Windows.Media.Brush AvatarBrush
     {
@@ -1391,14 +1536,20 @@ internal sealed class AccountItem : INotifyPropertyChanged
             if (ThemeManager.Accents.FirstOrDefault(a => a.Key == Profile.Color) is { Key: not null } accent)
                 return new System.Windows.Media.SolidColorBrush(ThemeManager.Parse(accent.Base));
 
-            return Resource(IsActive ? "Accent" : "SurfaceHi");
+            if (IsActive)
+                return Resource("Accent");
+
+            var seed = string.IsNullOrWhiteSpace(Profile.Email) ? DisplayName : Profile.Email;
+            return new System.Windows.Media.SolidColorBrush(Identicon.ColorFor(seed));
         }
     }
 
-    public System.Windows.Media.Brush AvatarTextBrush =>
-        IsActive || !string.IsNullOrEmpty(Profile.Color)
-            ? System.Windows.Media.Brushes.White
-            : Resource("TextSecondary");
+    // Every avatar now carries a colour (pinned, accent, or identicon), so the initial is always
+    // white on it.
+    public System.Windows.Media.Brush AvatarTextBrush => System.Windows.Media.Brushes.White;
+
+    /// <summary>The usage ring only means something when there's a usage figure and it's turned on.</summary>
+    public bool ShowUsageRing => App.Settings.UsageRings && HasUsage;
 
     public System.Windows.Visibility ExcludedVisibility =>
         Profile.ExcludeFromAuto ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
@@ -1413,20 +1564,29 @@ internal sealed class AccountItem : INotifyPropertyChanged
     {
         foreach (var name in new[]
         {
-            nameof(FiveHourText), nameof(FiveHourReset), nameof(FiveHourStar),
-            nameof(FiveHourRestStar), nameof(FiveHourBrush),
-            nameof(SevenDayText), nameof(SevenDayReset), nameof(SevenDayStar),
-            nameof(SevenDayRestStar), nameof(SevenDayBrush),
+            nameof(FiveHourReset), nameof(FiveHourBrush), nameof(FiveHourValue),
+            nameof(SevenDayReset), nameof(SevenDayBrush), nameof(SevenDayValue),
             nameof(UsageAsOf), nameof(UsageTooltip),
             nameof(SparkPoints), nameof(SparkVisibility),
+            nameof(ShowUsageRing), nameof(PendingVisibility), nameof(ValueVisibility),
         })
             OnPropertyChanged(name);
     }
 
     public bool HasUsage => Profile.UsageFetchedAt is not null;
 
+    /// <summary>"…" placeholder before the first fetch; the live number takes over once it arrives.</summary>
+    public System.Windows.Visibility PendingVisibility =>
+        HasUsage ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+
+    public System.Windows.Visibility ValueVisibility =>
+        HasUsage ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+
     /// <summary>5-hour utilization as a number; treated as full when unknown, for "most free" ranking.</summary>
     public double FiveHourValue => Profile.UsageFiveHourPercent ?? 100;
+
+    /// <summary>7-day utilization; 0 when unknown so its bar simply reads empty rather than full.</summary>
+    public double SevenDayValue => Profile.UsageSevenDayPercent ?? 0;
 
     // ── sparkline: 5-hour utilization over recent samples, scaled into a 74×16 box ──
 
@@ -1466,17 +1626,6 @@ internal sealed class AccountItem : INotifyPropertyChanged
 
     public System.Windows.Visibility MostFreeVisibility =>
         _isMostFree ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-
-    public string FiveHourText => HasUsage ? $"{Profile.UsageFiveHourPercent:0}%" : "…";
-    public string SevenDayText => HasUsage ? $"{Profile.UsageSevenDayPercent:0}%" : "…";
-
-    public GridLength FiveHourStar => Star(Profile.UsageFiveHourPercent);
-    public GridLength FiveHourRestStar => Star(100 - (Profile.UsageFiveHourPercent ?? 0));
-    public GridLength SevenDayStar => Star(Profile.UsageSevenDayPercent);
-    public GridLength SevenDayRestStar => Star(100 - (Profile.UsageSevenDayPercent ?? 0));
-
-    private static GridLength Star(double? percent)
-        => new(Math.Clamp(percent ?? 0, 0, 100), GridUnitType.Star);
 
     public System.Windows.Media.Brush FiveHourBrush => BarBrush(Profile.UsageFiveHourPercent);
     public System.Windows.Media.Brush SevenDayBrush => BarBrush(Profile.UsageSevenDayPercent);

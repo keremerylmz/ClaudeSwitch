@@ -95,6 +95,14 @@ single click updates your terminal **and** your editor at once.
 - **Light, dark, or follow Windows**, with a smooth crossfade when it changes — plus a **compact
   mode** that hides the usage panels for a denser list, per-account colours, a sort order that
   suits you, and a window that reopens where you left it.
+- **Crafted to glance at.** Each avatar is ringed by its live 5-hour usage, accounts you never
+  coloured get a stable colour from their email, usage numbers count up when they change, and on
+  Windows 11 the window sits on the translucent Mica material with rounded corners.
+- **Command palette** — `Ctrl+K`, type a name, Enter, switched.
+- **Mini mode** — collapse to a small always-on-top pill showing just the active account's usage
+  ring, out of the way but always visible.
+- **Blur emails** — one toggle masks every email and org across the app, for screenshots and
+  screen-sharing.
 - **7 languages** — English, Türkçe, Deutsch, Español, Français, Русский, 中文 — switchable on the fly.
 - **Safe `~/.claude.json` edits.** Your project history, MCP servers, and settings are preserved
   byte-for-byte (see [below](#why-claudejson-is-handled-so-carefully)).

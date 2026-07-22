@@ -1,0 +1,50 @@
+<Window x:Class="ClaudeSwitch.MiniWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctl="clr-namespace:ClaudeSwitch.Controls"
+        WindowStyle="None" ResizeMode="NoResize"
+        AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight"
+        FontFamily="{StaticResource UiFont}"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        MouseLeftButtonDown="Pill_Drag">
+
+    <!-- A compact glanceable pill: the active account's usage ring + name + 5-hour %, always on
+         top. Drag to move; the ⤢ button restores the full window. -->
+    <Border x:Name="Pill" CornerRadius="14" Padding="9,7,7,7"
+            Background="{DynamicResource Surface}"
+            BorderBrush="{DynamicResource BorderStrong}" BorderThickness="1"
+            Margin="10">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.26" Color="Black"/>
+        </Border.Effect>
+        <StackPanel Orientation="Horizontal">
+            <Grid Width="30" Height="30" VerticalAlignment="Center">
+                <ctl:UsageRing x:Name="Ring" Thickness="2.4"
+                               TrackBrush="{DynamicResource SurfaceHi}"/>
+                <Border x:Name="Avatar" Width="23" Height="23" CornerRadius="11.5">
+                    <TextBlock x:Name="AvatarText" FontSize="11" FontWeight="SemiBold"
+                               Foreground="White"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </Grid>
+
+            <StackPanel VerticalAlignment="Center" Margin="8,0,10,0">
+                <TextBlock x:Name="NameText" FontSize="12.5" FontWeight="SemiBold"
+                           Foreground="{DynamicResource Text}"
+                           TextTrimming="CharacterEllipsis" MaxWidth="150"/>
+                <TextBlock x:Name="UsageText" FontSize="11" Margin="0,1,0,0"
+                           Foreground="{DynamicResource TextMuted}"/>
+            </StackPanel>
+
+            <Button x:Name="RestoreButton" Style="{StaticResource IconButton}"
+                    Content="&#x2922;" FontSize="15" Width="26" Height="26"
+                    VerticalAlignment="Center" ToolTip="{loc:Tr mini.restore}"
+                    Click="Restore_Click"
+                    xmlns:loc="clr-namespace:ClaudeSwitch"/>
+        </StackPanel>
+    </Border>
+</Window>

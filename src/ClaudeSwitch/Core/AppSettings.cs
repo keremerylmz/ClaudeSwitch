@@ -20,6 +20,19 @@ internal sealed class AppSettings
     /// <summary>"light", "dark", or "system" to follow the Windows app theme.</summary>
     public string ThemeMode { get; set; } = "";
 
+    /// <summary>
+    /// Paint the window on the Windows 11 Mica material instead of a flat background. Ignored on
+    /// Windows 10, which has no such material. Defaults on where supported — it's the single
+    /// biggest "native and premium" cue on Win11.
+    /// </summary>
+    public bool Translucent { get; set; } = true;
+
+    /// <summary>Ring each account's avatar with its live 5-hour usage (green → amber → red).</summary>
+    public bool UsageRings { get; set; } = true;
+
+    /// <summary>Mask every email and org name to ••••, for screenshots and screen-sharing.</summary>
+    public bool Redact { get; set; }
+
     /// <summary>Compact mode hides the per-account usage panel for a denser list.</summary>
     public bool Compact { get; set; }
 
@@ -77,6 +90,15 @@ internal sealed class AppSettings
     public double WindowTop { get; set; }
     public double WindowWidth { get; set; }
     public double WindowHeight { get; set; }
+
+    // ── mini mode ──────────────────────────────────────────────────────────────
+
+    /// <summary>Show the small always-on-top usage pill instead of the full window.</summary>
+    public bool MiniMode { get; set; }
+
+    /// <summary>Last position of the mini pill; NaN until it has been placed once.</summary>
+    public double MiniLeft { get; set; } = double.NaN;
+    public double MiniTop { get; set; } = double.NaN;
 
     private static string Path => System.IO.Path.Combine(ClaudePaths.AppDataDir, "settings.json");
 

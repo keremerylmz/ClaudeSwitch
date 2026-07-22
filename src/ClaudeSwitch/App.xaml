@@ -415,6 +415,41 @@
                 <Setter Property="Padding" Value="13,12"/>
                 <Setter Property="Margin" Value="0,0,0,9"/>
                 <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                <Setter Property="RenderTransform">
+                    <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <!-- The cheapest "this is a live surface" signal: the border firms up and the
+                         card lifts a hair under the pointer. Silent, no layout change. -->
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+                        <Trigger.EnterActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX"
+                                                     To="1.012" Duration="0:0:0.12">
+                                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                    </DoubleAnimation>
+                                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY"
+                                                     To="1.012" Duration="0:0:0.12">
+                                        <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                    </DoubleAnimation>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </Trigger.EnterActions>
+                        <Trigger.ExitActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX"
+                                                     To="1" Duration="0:0:0.16"/>
+                                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY"
+                                                     To="1" Duration="0:0:0.16"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </Trigger.ExitActions>
+                    </Trigger>
+                </Style.Triggers>
             </Style>
 
         </ResourceDictionary>

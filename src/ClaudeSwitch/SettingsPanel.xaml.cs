@@ -28,6 +28,12 @@ public partial class SettingsPanel : System.Windows.Controls.UserControl
         _onChanged = onChanged;
 
         _loading = true;
+        // The Mica row is meaningless on Windows 10, so it's removed rather than shown disabled.
+        if (!WindowChrome.SupportsMica)
+            TranslucentRow.Visibility = TranslucentDivider.Visibility = Visibility.Collapsed;
+        TranslucentToggle.IsChecked = settings.Translucent;
+        RingsToggle.IsChecked = settings.UsageRings;
+        RedactToggle.IsChecked = settings.Redact;
         CompactToggle.IsChecked = settings.Compact;
         TrayClickToggle.IsChecked = settings.TrayLeftClickMenu;
         TrayUsageToggle.IsChecked = settings.TrayMenuUsage;
@@ -80,6 +86,30 @@ public partial class SettingsPanel : System.Windows.Controls.UserControl
         // Crossfade the main window as its list relayouts with/without the usage panels.
         if (App.MainView is { } main)
             ThemeTransition.Crossfade(new[] { main }, () => main.Refresh());
+    }
+
+    private void TranslucentToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.Translucent = TranslucentToggle.IsChecked == true;
+        _settings.Save();
+        App.MainView?.ApplyBackdrop();
+    }
+
+    private void RingsToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.UsageRings = RingsToggle.IsChecked == true;
+        _settings.Save();
+        App.MainView?.Refresh();
+    }
+
+    private void RedactToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.Redact = RedactToggle.IsChecked == true;
+        _settings.Save();
+        App.MainView?.Refresh();   // re-reads DisplayLabel/Subtitle and rebuilds the tray
     }
 
     // ── accounts ────────────────────────────────────────────────────────────
@@ -304,8 +334,14 @@ public partial class SettingsPanel : System.Windows.Controls.UserControl
         AppearanceHeader.Text = Loc.T("settings.appearance");
         ThemeTitle.Text = Loc.T("settings.theme");
         ThemeDesc.Text = Loc.T("settings.themeDesc");
+        TranslucentTitle.Text = Loc.T("settings.translucent");
+        TranslucentDesc.Text = Loc.T("settings.translucentDesc");
+        RingsTitle.Text = Loc.T("settings.rings");
+        RingsDesc.Text = Loc.T("settings.ringsDesc");
         CompactTitle.Text = Loc.T("settings.compact");
         CompactDesc.Text = Loc.T("settings.compactDesc");
+        RedactTitle.Text = Loc.T("settings.redact");
+        RedactDesc.Text = Loc.T("settings.redactDesc");
 
         AccountsHeader.Text = Loc.T("settings.accounts");
         SortTitle.Text = Loc.T("settings.sort");

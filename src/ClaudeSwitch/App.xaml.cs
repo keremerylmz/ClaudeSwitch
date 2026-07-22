@@ -15,6 +15,9 @@ public partial class App : Application
     /// <summary>Not named "Main" — that collides with the generated WPF entry point.</summary>
     internal static MainWindow? MainView { get; private set; }
 
+    /// <summary>The mini pill, non-null only while mini mode is active.</summary>
+    internal static MiniWindow? Mini { get; private set; }
+
     /// <summary>App-wide preferences (theme, compact, language). Loaded once at startup.</summary>
     internal static AppSettings Settings { get; private set; } = new();
 
@@ -115,8 +118,10 @@ public partial class App : Application
             a.Equals("--minimized", StringComparison.OrdinalIgnoreCase) ||
             a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
 
-        if (!startHidden) MainView.Show();
-        else MainView.Refresh();   // populate the tray menu without showing the window
+        MainView.Refresh();   // populate items and the tray menu regardless of what we show
+
+        if (Settings.MiniMode) EnterMiniMode();
+        else if (!startHidden) MainView.Show();
 
         // Keep the Run key in step with the setting (e.g. if the exe was moved).
         if (Settings.StartWithWindows) StartupManager.Set(true);
@@ -155,9 +160,43 @@ public partial class App : Application
         Tray?.NotifyUpdate("ClaudeSwitch", Loc.T("update.available", release.Tag), showMain: true);
     }
 
-    /// <summary>Brings the window back from the tray.</summary>
+    /// <summary>Collapses the full window into the always-on-top mini pill.</summary>
+    internal static void EnterMiniMode()
+    {
+        if (MainView is null) return;
+
+        Settings.MiniMode = true;
+        Settings.Save();
+
+        Mini ??= new MiniWindow();
+        Mini.UpdateFrom(MainView.ActiveItem);
+        Mini.Show();
+        Mini.Activate();
+        MainView.Hide();
+    }
+
+    /// <summary>Returns from the mini pill to the full window.</summary>
+    internal static void ExitMiniMode()
+    {
+        Settings.MiniMode = false;
+        Settings.Save();
+
+        Mini?.Close();
+        Mini = null;
+
+        ShowMain();
+    }
+
+    /// <summary>Brings the window back from the tray. In mini mode, the pill is the window.</summary>
     internal static void ShowMain()
     {
+        if (Settings.MiniMode && Mini is not null)
+        {
+            Mini.Show();
+            Mini.Activate();
+            return;
+        }
+
         if (MainView is null) return;
         MainView.Show();
         if (MainView.WindowState == WindowState.Minimized) MainView.WindowState = WindowState.Normal;
