@@ -33,6 +33,14 @@ internal sealed class TrayIcon : IDisposable
         };
 
         _icon.DoubleClick += (_, _) => App.ShowMain();
+
+        // Switching accounts is what this icon is for, so put it on the button people press
+        // first. Right-click still works — Windows shows the same menu itself.
+        _icon.MouseUp += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left && App.Settings.TrayLeftClickMenu)
+                ShowMenuAtCursor();
+        };
         _icon.BalloonTipClicked += (_, _) =>
         {
             if (_pendingUpdateUrl is { } url)
@@ -45,6 +53,19 @@ internal sealed class TrayIcon : IDisposable
             }
         };
     }
+
+    /// <summary>
+    /// Opens the menu at the pointer. Without handing the menu the foreground, Windows leaves a
+    /// tray-owned popup on screen after you click away — the well-known NotifyIcon quirk.
+    /// </summary>
+    private void ShowMenuAtCursor()
+    {
+        _menu.Show(System.Windows.Forms.Cursor.Position);
+        SetForegroundWindow(_menu.Handle);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     private Icon? _generatedIcon;
 
@@ -77,8 +98,8 @@ internal sealed class TrayIcon : IDisposable
             var tile = fiveHourPercent switch
             {
                 >= 90 => Color.FromArgb(0xB4, 0x44, 0x3A),   // red
-                >= 70 => Color.FromArgb(0xC9, 0x64, 0x42),   // amber-ish accent
-                null => Color.FromArgb(0xC9, 0x64, 0x42),    // unknown: brand accent
+                >= 70 => Color.FromArgb(0xC9, 0x64, 0x42),   // amber
+                null => Color.FromArgb(0xC9, 0x64, 0x42),     // unknown: brand accent
                 _ => Color.FromArgb(0x2F, 0x7A, 0x5B),        // green
             };
 
@@ -170,6 +191,11 @@ internal sealed class TrayIcon : IDisposable
                 var label = account.IsActive
                     ? $"● {account.DisplayName}"
                     : $"    {account.DisplayName}";
+
+                // The point of the menu is picking a target without opening the window, which
+                // needs the numbers you would have opened the window to read.
+                if (App.Settings.TrayMenuUsage && account.HasUsage)
+                    label += $"   —   {(int)account.FiveHourValue}%";
 
                 var item = new ToolStripMenuItem(label)
                 {

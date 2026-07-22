@@ -39,6 +39,14 @@ internal static class ClaudePaths
             ? Path.Combine(dir, ".claude.json")
             : Path.Combine(UserProfile, ".claude.json");
 
+    /// <summary>Claude Code's own settings — statusLine, hooks, model, permissions.</summary>
+    public static string ClaudeSettingsFile =>
+        Path.Combine(ClaudeHome, "settings.json");
+
+    /// <summary>One &lt;pid&gt;.json per running Claude Code session.</summary>
+    public static string SessionsDir =>
+        Path.Combine(ClaudeHome, "sessions");
+
     /// <summary>Our own state: %APPDATA%\ClaudeSwitch.</summary>
     public static string AppDataDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ClaudeSwitch");

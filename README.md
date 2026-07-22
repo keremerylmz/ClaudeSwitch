@@ -81,11 +81,18 @@ single click updates your terminal **and** your editor at once.
   the active account's usage, and warns you before you get blocked.
 - **"Most free" badge** highlights which saved account has the most quota left right now.
 - **Usage trend sparkline** on each card, from the history collected in the background.
+- **Ring-fence an account.** Mark a work or client seat "never auto-switch to this" so auto-switch
+  and the hotkey can't drop you into it unattended.
+- **Switch from one click.** Left-click the tray icon for the account list, with each account's
+  5-hour percentage right there in the menu.
+- **Optional Claude Code integration** — show the active account *inside* Claude Code's status
+  line, and get told the instant a session is rate-limited (see [below](#inside-claude-code)).
 - **Global hotkey** (`Ctrl+Alt+S`) cycles accounts from anywhere, and **Start with Windows** keeps
   it in your tray.
 - **Auto-update check** notifies you when a newer release is out.
-- **Light & dark themes** with a smooth crossfade when you switch — plus a **compact mode** that
-  hides the usage panels for a denser list.
+- **Light, dark, or follow Windows**, with a smooth crossfade when it changes — plus a **compact
+  mode** that hides the usage panels for a denser list, per-account colours, a sort order that
+  suits you, and a window that reopens where you left it.
 - **7 languages** — English, Türkçe, Deutsch, Español, Français, Русский, 中文 — switchable on the fly.
 - **Safe `~/.claude.json` edits.** Your project history, MCP servers, and settings are preserved
   byte-for-byte (see [below](#why-claudejson-is-handled-so-carefully)).
@@ -158,6 +165,25 @@ How it behaves:
 > ⚠️ This endpoint is **not officially documented** (Claude Code uses it internally). Anthropic could
 > change it without notice; if that happens the percentages simply disappear while the rest of the
 > app keeps working.
+
+---
+
+## Inside Claude Code
+
+Two optional integrations, both off by default and both removable from the same switch in
+**Settings → Claude Code**:
+
+| Integration | What it does |
+|---|---|
+| **Status line** | Shows `● account — 23% 5h` inside Claude Code itself, so "which account am I on?" is answered where you're working. The percentage is Claude Code's own live number — it arrives on the script's stdin, so this costs **no API call and never touches your tokens**. |
+| **Limit hook** | A `StopFailure` / `rate_limit` hook. The moment a session is rate-limited, the tray says so and names the account with the most headroom — instead of you finding out on the next background poll. It runs async and always exits 0, so it can't interfere with a turn. |
+
+Each adds **one root member** to `~/.claude/settings.json` (`statusLine` and `hooks`). That file is
+edited with the same [`JsonSurgeon`](src/ClaudeSwitch/Core/JsonSurgeon.cs) splice used for
+`~/.claude.json` — on a real install it is mostly your `permissions` rules, and none of it is ever
+parsed or reordered. A backup is taken first, ClaudeSwitch refuses to overwrite a status line you
+configured yourself, and removing the hook leaves any other hooks of yours exactly as they were.
+[Tests](tests/SurgeonTests/Program.cs) cover all of that.
 
 ---
 

@@ -6,8 +6,8 @@ using Cursors = System.Windows.Input.Cursors;
 namespace ClaudeSwitch;
 
 /// <summary>
-/// Preferences: dark mode, compact mode, and interface language. Every change applies
-/// immediately and persists — there is no separate "apply" step.
+/// Preferences. Every change applies immediately and persists — there is no separate
+/// "apply" step, and nothing here can leave the app in a half-configured state.
 /// </summary>
 public partial class SettingsWindow : Window
 {
@@ -22,16 +22,24 @@ public partial class SettingsWindow : Window
         _onChanged = onChanged;
 
         _loading = true;
-        DarkToggle.IsChecked = settings.DarkMode;
         CompactToggle.IsChecked = settings.Compact;
+        TrayClickToggle.IsChecked = settings.TrayLeftClickMenu;
+        TrayUsageToggle.IsChecked = settings.TrayMenuUsage;
         AutoSwitchToggle.IsChecked = settings.AutoSwitch;
         NotifyToggle.IsChecked = settings.LimitNotifications;
+        SwitchNotifyToggle.IsChecked = settings.SwitchNotifications;
+        SessionsToggle.IsChecked = settings.ShowLiveSessions;
         StartupToggle.IsChecked = StartupManager.IsEnabled();
         HotkeyToggle.IsChecked = settings.GlobalHotkey;
         UpdatesToggle.IsChecked = settings.CheckForUpdates;
+
+        // Integration state comes from Claude Code's own settings file, not from ours: the user
+        // may have removed either one by hand, and the switch has to tell the truth about that.
+        StatusLineToggle.IsChecked = ClaudeCodeIntegration.StatusLineState() == ClaudeCodeIntegration.State.Ours;
+        LimitHookToggle.IsChecked = ClaudeCodeIntegration.LimitHookState() == ClaudeCodeIntegration.State.Ours;
         _loading = false;
 
-        BuildLanguageList();
+        BuildPillLists();
         Localize();
 
         SourceInitialized += (_, _) => WindowChrome.Apply(this, ThemeManager.IsDark);
@@ -39,15 +47,21 @@ public partial class SettingsWindow : Window
 
     // ── appearance ──────────────────────────────────────────────────────────
 
-    private void DarkToggle_Changed(object sender, RoutedEventArgs e)
+    private void SelectTheme(string mode)
     {
-        if (_loading) return;
-        _settings.DarkMode = DarkToggle.IsChecked == true;
+        if (mode == _settings.ThemeMode) return;
+        _settings.ThemeMode = mode;
         _settings.Save();
 
         // Crossfade every open window from the old theme into the new one.
         var windows = Application.Current.Windows.Cast<Window>().Where(w => w.IsVisible).ToList();
-        ThemeTransition.Crossfade(windows, () => ThemeManager.Apply(_settings.DarkMode));
+        ThemeTransition.Crossfade(windows, () =>
+        {
+            ThemeManager.ApplyMode(mode);
+            _settings.Save();   // ThemeManager resolved "system"; persist the matching DarkMode flag
+        });
+
+        BuildPillLists();
     }
 
     private void CompactToggle_Changed(object sender, RoutedEventArgs e)
@@ -61,6 +75,32 @@ public partial class SettingsWindow : Window
             ThemeTransition.Crossfade(new[] { main }, () => main.Refresh());
     }
 
+    // ── accounts ────────────────────────────────────────────────────────────
+
+    private void TrayClickToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.TrayLeftClickMenu = TrayClickToggle.IsChecked == true;
+        _settings.Save();
+    }
+
+    private void TrayUsageToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.TrayMenuUsage = TrayUsageToggle.IsChecked == true;
+        _settings.Save();
+        _onChanged();   // rebuilds the tray menu
+    }
+
+    private void SelectSort(string sort)
+    {
+        if (sort == _settings.AccountSort) return;
+        _settings.AccountSort = sort;
+        _settings.Save();
+        BuildPillLists();
+        _onChanged();
+    }
+
     // ── behavior ────────────────────────────────────────────────────────────
 
     private void AutoSwitchToggle_Changed(object sender, RoutedEventArgs e)
@@ -70,10 +110,32 @@ public partial class SettingsWindow : Window
         _settings.Save();
     }
 
+    private void SelectThreshold(int percent)
+    {
+        if (percent == _settings.AutoSwitchThreshold) return;
+        _settings.AutoSwitchThreshold = percent;
+        _settings.Save();
+        BuildPillLists();
+    }
+
     private void NotifyToggle_Changed(object sender, RoutedEventArgs e)
     {
         if (_loading) return;
         _settings.LimitNotifications = NotifyToggle.IsChecked == true;
+        _settings.Save();
+    }
+
+    private void SwitchNotifyToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.SwitchNotifications = SwitchNotifyToggle.IsChecked == true;
+        _settings.Save();
+    }
+
+    private void SessionsToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.ShowLiveSessions = SessionsToggle.IsChecked == true;
         _settings.Save();
     }
 
@@ -100,22 +162,94 @@ public partial class SettingsWindow : Window
         _settings.Save();
     }
 
-    // ── language ────────────────────────────────────────────────────────────
+    // ── Claude Code integration ─────────────────────────────────────────────
 
-    private void BuildLanguageList()
+    private void StatusLineToggle_Changed(object sender, RoutedEventArgs e)
     {
-        LanguageList.Items.Clear();
-        foreach (var lang in Loc.Languages)
-            LanguageList.Items.Add(BuildLanguagePill(lang));
+        if (_loading) return;
+        Integration(StatusLineToggle,
+            ClaudeCodeIntegration.InstallStatusLine,
+            ClaudeCodeIntegration.RemoveStatusLine);
     }
 
-    private Border BuildLanguagePill(Loc.Language lang)
+    private void LimitHookToggle_Changed(object sender, RoutedEventArgs e)
     {
-        var selected = lang.Code == Loc.Current;
+        if (_loading) return;
+        Integration(LimitHookToggle,
+            ClaudeCodeIntegration.InstallLimitHook,
+            ClaudeCodeIntegration.RemoveLimitHook);
+    }
 
+    /// <summary>
+    /// Runs an install/uninstall against ~/.claude/settings.json. On failure the switch snaps
+    /// back, because a toggle that reads "on" while nothing was written is worse than an error.
+    /// </summary>
+    private void Integration(System.Windows.Controls.CheckBox toggle, Action install, Action remove)
+    {
+        var wantOn = toggle.IsChecked == true;
+
+        try
+        {
+            if (wantOn) install(); else remove();
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("Integration", ex);
+            MessageBox.Show(this, ex.Message, Loc.T("settings.integration"),
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+
+            _loading = true;
+            toggle.IsChecked = !wantOn;
+            _loading = false;
+        }
+    }
+
+    // ── pill lists ──────────────────────────────────────────────────────────
+
+    private void BuildPillLists()
+    {
+        Fill(ThemeList,
+        [
+            ("light", Loc.T("settings.themeLight")),
+            ("dark", Loc.T("settings.themeDark")),
+            ("system", Loc.T("settings.themeSystem")),
+        ], _settings.ThemeMode, SelectTheme);
+
+        Fill(SortList,
+        [
+            ("recent", Loc.T("settings.sortRecent")),
+            ("name", Loc.T("settings.sortName")),
+            ("free", Loc.T("settings.sortFree")),
+            ("plan", Loc.T("settings.sortPlan")),
+        ], _settings.AccountSort, SelectSort);
+
+        Fill(ThresholdList,
+            [.. new[] { 85, 90, 95, 98 }.Select(p => (p.ToString(), $"{p}%"))],
+            _settings.AutoSwitchThreshold.ToString(),
+            key => SelectThreshold(int.Parse(key)));
+
+        LanguageList.Items.Clear();
+        foreach (var lang in Loc.Languages)
+            LanguageList.Items.Add(BuildPill(lang.Name, lang.Code == Loc.Current, () => SelectLanguage(lang.Code)));
+    }
+
+    private static void Fill(ItemsControl list, (string Key, string Label)[] options,
+                             string selected, Action<string> onSelect)
+    {
+        list.Items.Clear();
+        foreach (var (key, label) in options)
+            list.Items.Add(BuildPill(label, key == selected, () => onSelect(key)));
+    }
+
+    /// <summary>
+    /// Colours are set with SetResourceReference, not FindResource: a pill built with the
+    /// latter keeps the brush it captured and stays light after a switch to dark mode.
+    /// </summary>
+    private static Border BuildPill(string label, bool selected, Action onClick)
+    {
         var text = new TextBlock
         {
-            Text = lang.Name,
+            Text = label,
             FontSize = 12.5,
             FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal,
             VerticalAlignment = VerticalAlignment.Center,
@@ -131,15 +265,15 @@ public partial class SettingsWindow : Window
             BorderThickness = new Thickness(selected ? 1.4 : 1),
         };
 
-        // SetResourceReference (not FindResource) so the colours track live theme changes —
-        // otherwise a pill keeps the brush captured at build time and stays light in dark mode.
         text.SetResourceReference(TextBlock.ForegroundProperty, selected ? "Accent" : "Text");
         pill.SetResourceReference(Border.BackgroundProperty, selected ? "AccentSoft" : "Bg");
         pill.SetResourceReference(Border.BorderBrushProperty, selected ? "AccentBorder" : "Border");
 
-        pill.MouseLeftButtonUp += (_, _) => SelectLanguage(lang.Code);
+        pill.MouseLeftButtonUp += (_, _) => onClick();
         return pill;
     }
+
+    // ── language ────────────────────────────────────────────────────────────
 
     private void SelectLanguage(string code)
     {
@@ -149,7 +283,7 @@ public partial class SettingsWindow : Window
         _settings.Save();
         Loc.Current = code;      // raises Loc.Changed → main window rebuilds
 
-        BuildLanguageList();     // re-highlight selection
+        BuildPillLists();        // re-highlight selection and re-label the pills
         Localize();              // re-translate this window in place
         _onChanged();
     }
@@ -159,23 +293,45 @@ public partial class SettingsWindow : Window
     {
         Title = Loc.T("settings.title");
         TitleText.Text = Loc.T("settings.title");
+
         AppearanceHeader.Text = Loc.T("settings.appearance");
-        DarkTitle.Text = Loc.T("settings.darkMode");
-        DarkDesc.Text = Loc.T("settings.darkModeDesc");
+        ThemeTitle.Text = Loc.T("settings.theme");
+        ThemeDesc.Text = Loc.T("settings.themeDesc");
         CompactTitle.Text = Loc.T("settings.compact");
         CompactDesc.Text = Loc.T("settings.compactDesc");
+
+        AccountsHeader.Text = Loc.T("settings.accounts");
+        SortTitle.Text = Loc.T("settings.sort");
+        SortDesc.Text = Loc.T("settings.sortDesc");
+        TrayClickTitle.Text = Loc.T("settings.trayClick");
+        TrayClickDesc.Text = Loc.T("settings.trayClickDesc");
+        TrayUsageTitle.Text = Loc.T("settings.trayUsage");
+        TrayUsageDesc.Text = Loc.T("settings.trayUsageDesc");
 
         BehaviorHeader.Text = Loc.T("settings.behavior");
         AutoSwitchTitle.Text = Loc.T("settings.autoSwitch");
         AutoSwitchDesc.Text = Loc.T("settings.autoSwitchDesc");
+        ThresholdTitle.Text = Loc.T("settings.threshold");
+        ThresholdDesc.Text = Loc.T("settings.thresholdDesc");
         NotifyTitle.Text = Loc.T("settings.notifications");
         NotifyDesc.Text = Loc.T("settings.notificationsDesc");
+        SwitchNotifyTitle.Text = Loc.T("settings.switchNotifications");
+        SwitchNotifyDesc.Text = Loc.T("settings.switchNotificationsDesc");
+        SessionsTitle.Text = Loc.T("settings.sessions");
+        SessionsDesc.Text = Loc.T("settings.sessionsDesc");
         StartupTitle.Text = Loc.T("settings.startup");
         StartupDesc.Text = Loc.T("settings.startupDesc");
         HotkeyTitle.Text = Loc.T("settings.hotkey");
         HotkeyDesc.Text = Loc.T("settings.hotkeyDesc");
         UpdatesTitle.Text = Loc.T("settings.updates");
         UpdatesDesc.Text = Loc.T("settings.updatesDesc");
+
+        IntegrationHeader.Text = Loc.T("settings.integration");
+        StatusLineTitle.Text = Loc.T("settings.statusLine");
+        StatusLineDesc.Text = Loc.T("settings.statusLineDesc");
+        LimitHookTitle.Text = Loc.T("settings.limitHook");
+        LimitHookDesc.Text = Loc.T("settings.limitHookDesc");
+        IntegrationNote.Text = Loc.T("settings.integrationNote");
 
         LanguageHeader.Text = Loc.T("settings.language");
         DoneButton.Content = Loc.T("settings.done");

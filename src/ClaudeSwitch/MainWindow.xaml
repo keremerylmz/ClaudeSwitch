@@ -69,11 +69,11 @@
 
                                         <Border x:Name="Avatar" Grid.Column="0"
                                                 Width="36" Height="36" CornerRadius="18"
-                                                Background="{DynamicResource SurfaceHi}"
+                                                Background="{Binding AvatarBrush}"
                                                 VerticalAlignment="Center" Margin="0,0,12,0">
                                             <TextBlock x:Name="AvatarText" Text="{Binding Initial}"
                                                        FontSize="14" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       Foreground="{Binding AvatarTextBrush}"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
 
@@ -89,6 +89,10 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,6,0">
+                                            <TextBlock Text="🔒" Visibility="{Binding ExcludedVisibility}"
+                                                       FontSize="10" VerticalAlignment="Center" Margin="0,0,5,0"
+                                                       Foreground="{DynamicResource TextMuted}"
+                                                       ToolTip="{loc:Tr menu.excludeFromAutoTip}"/>
                                             <Border Visibility="{Binding MostFreeVisibility}" CornerRadius="5"
                                                     Padding="7,3" Margin="0,0,5,0"
                                                     Background="{DynamicResource AccentSoft}"
@@ -191,8 +195,6 @@
                                 <DataTrigger Binding="{Binding IsActive}" Value="True">
                                     <Setter TargetName="Card" Property="Background" Value="{DynamicResource AccentSoft}"/>
                                     <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource AccentBorder}"/>
-                                    <Setter TargetName="Avatar" Property="Background" Value="{DynamicResource Accent}"/>
-                                    <Setter TargetName="AvatarText" Property="Foreground" Value="White"/>
                                     <Setter TargetName="UsageBox" Property="Background" Value="{DynamicResource Bg}"/>
                                     <Setter TargetName="UseButton" Property="Content" Value="{loc:Tr card.active}"/>
                                     <Setter TargetName="UseButton" Property="IsEnabled" Value="False"/>

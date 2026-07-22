@@ -25,6 +25,16 @@ internal sealed class Profile
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? LastUsedAt { get; set; }
 
+    /// <summary>
+    /// Keep auto-switch and the hotkey cycle away from this account. Without it, a work or
+    /// client seat can be dropped into your editor unattended — the one thing that makes
+    /// leaving auto-switch on unsafe.
+    /// </summary>
+    public bool ExcludeFromAuto { get; set; }
+
+    /// <summary>Accent key for this account's avatar; empty uses the neutral default.</summary>
+    public string Color { get; set; } = "";
+
     /// <summary>Unix ms token expiry, mirrored from the credentials for display only.</summary>
     public long ExpiresAt { get; set; }
 

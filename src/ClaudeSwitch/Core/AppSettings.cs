@@ -10,7 +10,15 @@ namespace ClaudeSwitch.Core;
 /// </summary>
 internal sealed class AppSettings
 {
+    /// <summary>
+    /// Legacy two-state theme flag. Superseded by <see cref="ThemeMode"/>, but still written so
+    /// downgrading to an older build keeps the user's choice, and still read on first load of a
+    /// settings file written before ThemeMode existed.
+    /// </summary>
     public bool DarkMode { get; set; }
+
+    /// <summary>"light", "dark", or "system" to follow the Windows app theme.</summary>
+    public string ThemeMode { get; set; } = "";
 
     /// <summary>Compact mode hides the per-account usage panel for a denser list.</summary>
     public bool Compact { get; set; }
@@ -29,6 +37,30 @@ internal sealed class AppSettings
     /// <summary>Show a tray notification as the active account nears its limit.</summary>
     public bool LimitNotifications { get; set; } = true;
 
+    /// <summary>
+    /// Show a balloon confirming each switch. Separate from <see cref="LimitNotifications"/>:
+    /// the hotkey exists to switch WITHOUT looking at anything, and a toast per press defeats it.
+    /// </summary>
+    public bool SwitchNotifications { get; set; } = true;
+
+    /// <summary>
+    /// After a switch, name the Claude Code sessions that are open.
+    ///
+    /// Deliberately informational rather than a confirmation prompt: switching mid-conversation
+    /// is the feature, not a hazard, so the useful thing to say is WHICH sessions will pick the
+    /// new account up — not to stand between the user and the click they just made.
+    /// </summary>
+    public bool ShowLiveSessions { get; set; } = true;
+
+    /// <summary>Left-clicking the tray icon opens the account menu (otherwise it needs a right-click).</summary>
+    public bool TrayLeftClickMenu { get; set; } = true;
+
+    /// <summary>Append each account's 5-hour usage to its row in the tray menu.</summary>
+    public bool TrayMenuUsage { get; set; } = true;
+
+    /// <summary>Account list order: "recent", "name", "free", or "plan".</summary>
+    public string AccountSort { get; set; } = "recent";
+
     /// <summary>Launch on sign-in and sit in the tray.</summary>
     public bool StartWithWindows { get; set; }
 
@@ -38,6 +70,14 @@ internal sealed class AppSettings
     /// <summary>Check GitHub for a newer release on startup.</summary>
     public bool CheckForUpdates { get; set; } = true;
 
+    // ── window placement ──────────────────────────────────────────────────────
+    // Zero width means "never saved"; the window then falls back to centring itself.
+
+    public double WindowLeft { get; set; }
+    public double WindowTop { get; set; }
+    public double WindowWidth { get; set; }
+    public double WindowHeight { get; set; }
+
     private static string Path => System.IO.Path.Combine(ClaudePaths.AppDataDir, "settings.json");
 
     public static AppSettings Load()
@@ -45,19 +85,30 @@ internal sealed class AppSettings
         try
         {
             if (File.Exists(Path))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Path)) ?? new AppSettings();
+            {
+                var loaded = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Path)) ?? new AppSettings();
+
+                // Settings files written before ThemeMode existed only carry the DarkMode bool.
+                if (string.IsNullOrWhiteSpace(loaded.ThemeMode))
+                    loaded.ThemeMode = loaded.DarkMode ? "dark" : "light";
+
+                return loaded;
+            }
         }
         catch (Exception ex) when (ex is JsonException or IOException)
         {
             // Corrupt settings should never block startup; fall back to defaults.
         }
-        return new AppSettings();
+        return new AppSettings { ThemeMode = "light" };
     }
 
     public void Save()
     {
         try
         {
+            // Keep the legacy flag truthful so an older build reads the right theme.
+            DarkMode = ThemeManager.IsDark;
+
             ClaudePaths.EnsureAppDirectories();
             AtomicFile.WriteAllText(Path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
         }

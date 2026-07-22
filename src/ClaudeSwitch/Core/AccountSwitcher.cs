@@ -18,6 +18,11 @@ internal sealed class AccountSwitcher
     /// </summary>
     private static readonly string[] AccountScopedCaches =
     [
+        // Claude Code's own copy of the usage numbers, stamped with the account UUID it was
+        // fetched for. Left behind, its /usage and footer report the OUTGOING account's
+        // percentages until it happens to refetch — the switch looks like it silently failed.
+        "cachedUsageUtilization",
+        "groveConfigCache",
         "modelAccessCache",
         "clientDataCache",
         "clientDataCacheSlots",

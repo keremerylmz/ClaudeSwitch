@@ -20,8 +20,6 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        // CLI mode: a command was given (list/switch/usage/…). Run it, then exit — no window,
-        // no tray, no single-instance mutex (the CLI can run alongside a running tray app).
         // A second instance could race the first one writing credentials — allow only one.
         _singleInstance = new Mutex(initiallyOwned: true, "ClaudeSwitch.SingleInstance", out var isFirst);
         if (!isFirst)
@@ -84,7 +82,22 @@ public partial class App : Application
         // the right theme and language (no flash of the default light/English UI).
         Settings = AppSettings.Load();
         Loc.Current = Settings.Language;
-        ThemeManager.Apply(Settings.DarkMode);
+        ThemeManager.ApplyMode(Settings.ThemeMode);
+
+        // "Follow Windows" has to keep following: the OS theme flips on a schedule for plenty of
+        // people, and a tray app that stays light until its next restart is the whole complaint.
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged += (_, args) =>
+        {
+            if (args.Category != Microsoft.Win32.UserPreferenceCategory.General) return;
+            if (ThemeManager.Mode != "system") return;
+
+            Current.Dispatcher.BeginInvoke(() =>
+            {
+                if (ThemeManager.IsDark == ThemeManager.WindowsPrefersDark()) return;
+                ThemeManager.Reapply();
+                MainView?.Refresh();   // re-resolves the brushes the cards build in code
+            });
+        };
 
         // Temp browser profiles from previous logins are still locked when a login finishes,
         // so they get cleared here instead.

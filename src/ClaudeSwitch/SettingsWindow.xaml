@@ -1,63 +1,84 @@
 <Window x:Class="ClaudeSwitch.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Width="400" SizeToContent="Height"
+        Width="420" Height="640" MinHeight="380"
         Background="{DynamicResource Bg}"
         FontFamily="{StaticResource UiFont}"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         ShowInTaskbar="False"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
 
-    <Border Background="{DynamicResource Bg}">
-        <StackPanel>
+    <Window.Resources>
+        <!-- One settings row: title, description, and a control on the right. -->
+        <Style x:Key="RowText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        </Style>
+        <Style x:Key="RowDesc" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontSmall}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontCaption}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+            <Setter Property="Margin" Value="2,20,0,10"/>
+        </Style>
+        <Style x:Key="SectionCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Surface}"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,4"/>
+        </Style>
+    </Window.Resources>
 
-            <!-- Header -->
-            <Border Background="{DynamicResource Surface}"
-                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
-                    Padding="20,15">
-                <TextBlock x:Name="TitleText" Text="Settings" VerticalAlignment="Center"
-                           FontSize="{StaticResource FontTitle}" FontWeight="SemiBold"
-                           Foreground="{DynamicResource Text}"/>
-            </Border>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-            <StackPanel Margin="20,18,20,20">
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource Surface}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
+                Padding="20,15">
+            <TextBlock x:Name="TitleText" Text="Settings" VerticalAlignment="Center"
+                       FontSize="{StaticResource FontTitle}" FontWeight="SemiBold"
+                       Foreground="{DynamicResource Text}"/>
+        </Border>
 
-                <!-- Appearance -->
-                <TextBlock x:Name="AppearanceHeader" Text="APPEARANCE"
-                           FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextMuted}" Margin="2,0,0,10"/>
+        <ScrollViewer Grid.Row="1" Style="{StaticResource ListScroll}">
+            <StackPanel Margin="20,4,20,20">
 
-                <Border Background="{DynamicResource Surface}" CornerRadius="10"
-                        BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="14,4">
+                <!-- ══════════════ Appearance ══════════════ -->
+                <TextBlock x:Name="AppearanceHeader" Text="APPEARANCE" Style="{StaticResource SectionHeader}"/>
+
+                <Border Style="{StaticResource SectionCard}">
                     <StackPanel>
-                        <Grid Height="52">
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="DarkTitle" Text="Dark mode"
-                                           FontSize="{StaticResource FontStrong}"
-                                           Foreground="{DynamicResource Text}"/>
-                                <TextBlock x:Name="DarkDesc" Text="Use a dark color theme."
-                                           FontSize="{StaticResource FontSmall}" Margin="0,2,0,0"
-                                           Foreground="{DynamicResource TextMuted}"/>
-                            </StackPanel>
-                            <CheckBox x:Name="DarkToggle" Style="{StaticResource ToggleSwitch}"
-                                      HorizontalAlignment="Right" VerticalAlignment="Center"
-                                      Checked="DarkToggle_Changed" Unchecked="DarkToggle_Changed"/>
-                        </Grid>
+                        <StackPanel Margin="0,12,0,12">
+                            <TextBlock x:Name="ThemeTitle" Text="Theme" Style="{StaticResource RowText}"/>
+                            <TextBlock x:Name="ThemeDesc" Style="{StaticResource RowDesc}"/>
+                            <ItemsControl x:Name="ThemeList" Margin="0,8,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </StackPanel>
 
                         <Border Height="1" Background="{DynamicResource Border}"/>
 
-                        <Grid Height="52">
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="CompactTitle" Text="Compact mode"
-                                           FontSize="{StaticResource FontStrong}"
-                                           Foreground="{DynamicResource Text}"/>
-                                <TextBlock x:Name="CompactDesc" Text="Hide usage details for a denser list."
-                                           FontSize="{StaticResource FontSmall}" Margin="0,2,0,0"
-                                           Foreground="{DynamicResource TextMuted}"/>
+                        <Grid Height="54">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="CompactTitle" Text="Compact mode" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="CompactDesc" Style="{StaticResource RowDesc}"/>
                             </StackPanel>
                             <CheckBox x:Name="CompactToggle" Style="{StaticResource ToggleSwitch}"
                                       HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -66,72 +87,140 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Behavior -->
-                <TextBlock x:Name="BehaviorHeader" Text="BEHAVIOR"
-                           FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextMuted}" Margin="2,20,0,10"/>
+                <!-- ══════════════ Accounts ══════════════ -->
+                <TextBlock x:Name="AccountsHeader" Text="ACCOUNTS" Style="{StaticResource SectionHeader}"/>
 
-                <Border Background="{DynamicResource Surface}" CornerRadius="10"
-                        BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="14,4">
+                <Border Style="{StaticResource SectionCard}">
                     <StackPanel>
-                        <Grid Height="54">
+                        <StackPanel Margin="0,12,0,12">
+                            <TextBlock x:Name="SortTitle" Text="Sort accounts by" Style="{StaticResource RowText}"/>
+                            <TextBlock x:Name="SortDesc" Style="{StaticResource RowDesc}"/>
+                            <ItemsControl x:Name="SortList" Margin="0,8,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="60">
                             <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
-                                <TextBlock x:Name="AutoSwitchTitle" Text="Auto-switch at limit"
-                                           FontSize="{StaticResource FontStrong}" Foreground="{DynamicResource Text}"/>
-                                <TextBlock x:Name="AutoSwitchDesc" TextWrapping="Wrap" FontSize="{StaticResource FontSmall}"
-                                           Margin="0,2,0,0" Foreground="{DynamicResource TextMuted}"/>
+                                <TextBlock x:Name="TrayClickTitle" Text="Left-click opens the menu" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="TrayClickDesc" Style="{StaticResource RowDesc}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="TrayClickToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="TrayClickToggle_Changed" Unchecked="TrayClickToggle_Changed"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="60">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="TrayUsageTitle" Text="Usage in the tray menu" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="TrayUsageDesc" Style="{StaticResource RowDesc}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="TrayUsageToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="TrayUsageToggle_Changed" Unchecked="TrayUsageToggle_Changed"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ══════════════ Behavior ══════════════ -->
+                <TextBlock x:Name="BehaviorHeader" Text="BEHAVIOR" Style="{StaticResource SectionHeader}"/>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <StackPanel>
+                        <Grid Height="60">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="AutoSwitchTitle" Text="Auto-switch at limit" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="AutoSwitchDesc" Style="{StaticResource RowDesc}"/>
                             </StackPanel>
                             <CheckBox x:Name="AutoSwitchToggle" Style="{StaticResource ToggleSwitch}"
                                       HorizontalAlignment="Right" VerticalAlignment="Center"
                                       Checked="AutoSwitchToggle_Changed" Unchecked="AutoSwitchToggle_Changed"/>
                         </Grid>
+
                         <Border Height="1" Background="{DynamicResource Border}"/>
 
-                        <Grid Height="54">
+                        <StackPanel Margin="0,12,0,12">
+                            <TextBlock x:Name="ThresholdTitle" Text="Switch at" Style="{StaticResource RowText}"/>
+                            <TextBlock x:Name="ThresholdDesc" Style="{StaticResource RowDesc}"/>
+                            <ItemsControl x:Name="ThresholdList" Margin="0,8,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="60">
                             <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
-                                <TextBlock x:Name="NotifyTitle" Text="Limit notifications"
-                                           FontSize="{StaticResource FontStrong}" Foreground="{DynamicResource Text}"/>
-                                <TextBlock x:Name="NotifyDesc" TextWrapping="Wrap" FontSize="{StaticResource FontSmall}"
-                                           Margin="0,2,0,0" Foreground="{DynamicResource TextMuted}"/>
+                                <TextBlock x:Name="NotifyTitle" Text="Limit notifications" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="NotifyDesc" Style="{StaticResource RowDesc}"/>
                             </StackPanel>
                             <CheckBox x:Name="NotifyToggle" Style="{StaticResource ToggleSwitch}"
                                       HorizontalAlignment="Right" VerticalAlignment="Center"
                                       Checked="NotifyToggle_Changed" Unchecked="NotifyToggle_Changed"/>
                         </Grid>
+
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="60">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="SwitchNotifyTitle" Text="Switch notifications" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="SwitchNotifyDesc" Style="{StaticResource RowDesc}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="SwitchNotifyToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="SwitchNotifyToggle_Changed" Unchecked="SwitchNotifyToggle_Changed"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="66">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="SessionsTitle" Text="Name open sessions" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="SessionsDesc" Style="{StaticResource RowDesc}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="SessionsToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="SessionsToggle_Changed" Unchecked="SessionsToggle_Changed"/>
+                        </Grid>
+
                         <Border Height="1" Background="{DynamicResource Border}"/>
 
                         <Grid Height="54">
                             <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
-                                <TextBlock x:Name="StartupTitle" Text="Start with Windows"
-                                           FontSize="{StaticResource FontStrong}" Foreground="{DynamicResource Text}"/>
-                                <TextBlock x:Name="StartupDesc" TextWrapping="Wrap" FontSize="{StaticResource FontSmall}"
-                                           Margin="0,2,0,0" Foreground="{DynamicResource TextMuted}"/>
+                                <TextBlock x:Name="StartupTitle" Text="Start with Windows" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="StartupDesc" Style="{StaticResource RowDesc}"/>
                             </StackPanel>
                             <CheckBox x:Name="StartupToggle" Style="{StaticResource ToggleSwitch}"
                                       HorizontalAlignment="Right" VerticalAlignment="Center"
                                       Checked="StartupToggle_Changed" Unchecked="StartupToggle_Changed"/>
                         </Grid>
+
                         <Border Height="1" Background="{DynamicResource Border}"/>
 
                         <Grid Height="54">
                             <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
-                                <TextBlock x:Name="HotkeyTitle" Text="Global hotkey"
-                                           FontSize="{StaticResource FontStrong}" Foreground="{DynamicResource Text}"/>
-                                <TextBlock x:Name="HotkeyDesc" TextWrapping="Wrap" FontSize="{StaticResource FontSmall}"
-                                           Margin="0,2,0,0" Foreground="{DynamicResource TextMuted}"/>
+                                <TextBlock x:Name="HotkeyTitle" Text="Global hotkey" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="HotkeyDesc" Style="{StaticResource RowDesc}"/>
                             </StackPanel>
                             <CheckBox x:Name="HotkeyToggle" Style="{StaticResource ToggleSwitch}"
                                       HorizontalAlignment="Right" VerticalAlignment="Center"
                                       Checked="HotkeyToggle_Changed" Unchecked="HotkeyToggle_Changed"/>
                         </Grid>
+
                         <Border Height="1" Background="{DynamicResource Border}"/>
 
                         <Grid Height="54">
                             <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
-                                <TextBlock x:Name="UpdatesTitle" Text="Check for updates"
-                                           FontSize="{StaticResource FontStrong}" Foreground="{DynamicResource Text}"/>
-                                <TextBlock x:Name="UpdatesDesc" TextWrapping="Wrap" FontSize="{StaticResource FontSmall}"
-                                           Margin="0,2,0,0" Foreground="{DynamicResource TextMuted}"/>
+                                <TextBlock x:Name="UpdatesTitle" Text="Check for updates" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="UpdatesDesc" Style="{StaticResource RowDesc}"/>
                             </StackPanel>
                             <CheckBox x:Name="UpdatesToggle" Style="{StaticResource ToggleSwitch}"
                                       HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -140,26 +229,59 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Language -->
-                <TextBlock x:Name="LanguageHeader" Text="LANGUAGE"
-                           FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextMuted}" Margin="2,20,0,10"/>
+                <!-- ══════════════ Claude Code integration ══════════════ -->
+                <TextBlock x:Name="IntegrationHeader" Text="CLAUDE CODE" Style="{StaticResource SectionHeader}"/>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <StackPanel>
+                        <Grid Height="72">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="StatusLineTitle" Text="Show the account in Claude Code" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="StatusLineDesc" Style="{StaticResource RowDesc}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="StatusLineToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="StatusLineToggle_Changed" Unchecked="StatusLineToggle_Changed"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <Grid Height="72">
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,54,0">
+                                <TextBlock x:Name="LimitHookTitle" Text="Tell me the moment a session is limited" Style="{StaticResource RowText}"/>
+                                <TextBlock x:Name="LimitHookDesc" Style="{StaticResource RowDesc}"/>
+                            </StackPanel>
+                            <CheckBox x:Name="LimitHookToggle" Style="{StaticResource ToggleSwitch}"
+                                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="LimitHookToggle_Changed" Unchecked="LimitHookToggle_Changed"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock x:Name="IntegrationNote" Margin="4,9,4,0"
+                           FontSize="{StaticResource FontCaption}" TextWrapping="Wrap" LineHeight="16"
+                           Foreground="{DynamicResource TextMuted}"/>
+
+                <!-- ══════════════ Language ══════════════ -->
+                <TextBlock x:Name="LanguageHeader" Text="LANGUAGE" Style="{StaticResource SectionHeader}"/>
 
                 <Border Background="{DynamicResource Surface}" CornerRadius="10"
                         BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="8">
                     <ItemsControl x:Name="LanguageList">
                         <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel/>
-                            </ItemsPanelTemplate>
+                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                     </ItemsControl>
                 </Border>
 
-                <Button x:Name="DoneButton" Style="{StaticResource PrimaryButton}" Content="Done"
-                        HorizontalAlignment="Right" Margin="0,20,0,0" Padding="22,9"
-                        Click="Close_Click"/>
             </StackPanel>
-        </StackPanel>
-    </Border>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Background="{DynamicResource Surface}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
+                Padding="20,13">
+            <Button x:Name="DoneButton" Style="{StaticResource PrimaryButton}" Content="Done"
+                    HorizontalAlignment="Right" Padding="22,9" Click="Close_Click"/>
+        </Border>
+    </Grid>
 </Window>

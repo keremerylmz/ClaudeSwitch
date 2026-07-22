@@ -77,6 +77,67 @@ const string pretty = "{\n  \"a\" : 1 ,\n  \"userID\" : \"u\" \n}";
 Check("handles pretty-printed whitespace",
     JsonSurgeon.GetStringValue(pretty, "userID") == "u");
 
+// ---- settings.json integration edits -------------------------------------
+// The status line and rate-limit hook write into ~/.claude/settings.json, whose bulk on a real
+// install is the user's permission rules. These prove the edits are add-only and reversible.
+
+Console.WriteLine("\n=== Settings integration ===");
+
+const string slCmd = "powershell -File \"C:\\x\\statusline.ps1\"";
+const string hkCmd = "powershell -File \"C:\\x\\limit-hook.ps1\"";
+
+// A settings file shaped like a real one: a big permissions block plus other keys around ours.
+const string settings =
+    """{"permissions":{"allow":["Bash(git:*)","Read(/**)"],"deny":[]},"model":"opus","hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"other.sh"}]}]}}""";
+
+var withSl = SettingsEditor.SetStatusLine(settings, slCmd);
+Check("status line is added and recognised as ours",
+    SettingsEditor.IsOurs(withSl, "statusLine", SettingsEditor.StatusLineMarker));
+Check("adding the status line leaves permissions byte-identical",
+    JsonSurgeon.GetRawValue(withSl, "permissions") == JsonSurgeon.GetRawValue(settings, "permissions"));
+Check("removing the status line restores the file exactly",
+    SettingsEditor.RemoveStatusLine(withSl) == settings,
+    SettingsEditor.RemoveStatusLine(withSl));
+
+var withHook = SettingsEditor.SetLimitHook(settings, hkCmd);
+Check("limit hook is added and recognised as ours",
+    SettingsEditor.IsOurs(withHook, "hooks", SettingsEditor.LimitHookMarker));
+Check("adding the hook preserves the user's existing PreToolUse hook",
+    JsonSurgeon.GetRawValue(withHook, "hooks")!.Contains("other.sh"));
+Check("adding the hook leaves permissions byte-identical",
+    JsonSurgeon.GetRawValue(withHook, "permissions") == JsonSurgeon.GetRawValue(settings, "permissions"));
+
+// Removing our hook must put the user's own hooks back exactly as they were.
+var hookRemoved = SettingsEditor.RemoveLimitHook(withHook);
+Check("removing the hook restores hooks to the original",
+    JsonSurgeon.GetRawValue(hookRemoved, "hooks") == JsonSurgeon.GetRawValue(settings, "hooks"),
+    JsonSurgeon.GetRawValue(hookRemoved, "hooks"));
+
+// Installing twice must not stack two copies of our matcher.
+var twice = SettingsEditor.SetLimitHook(withHook, hkCmd);
+var ourCount = System.Text.RegularExpressions.Regex.Matches(
+    JsonSurgeon.GetRawValue(twice, "hooks")!, SettingsEditor.LimitHookMarker).Count;
+Check("re-installing the hook does not duplicate it", ourCount == 1, $"count={ourCount}");
+
+// When ours is the only StopFailure entry and there are no other hooks at all, removing it
+// should take the empty "hooks" object away rather than leave scaffolding behind.
+const string bare = """{"model":"opus"}""";
+var bareHook = SettingsEditor.SetLimitHook(bare, hkCmd);
+Check("hook removal from an otherwise-empty file leaves no hooks key",
+    SettingsEditor.RemoveLimitHook(bareHook) == bare,
+    SettingsEditor.RemoveLimitHook(bareHook));
+
+// A pre-existing StopFailure matcher the user set up themselves must survive our uninstall.
+const string userStop =
+    """{"hooks":{"StopFailure":[{"matcher":"billing_error","hooks":[{"type":"command","command":"mine.sh"}]}]}}""";
+var coexist = SettingsEditor.SetLimitHook(userStop, hkCmd);
+Check("our hook coexists with the user's StopFailure matcher",
+    JsonSurgeon.GetRawValue(coexist, "hooks")!.Contains("mine.sh")
+    && SettingsEditor.IsOurs(coexist, "hooks", SettingsEditor.LimitHookMarker));
+Check("removing ours keeps the user's StopFailure matcher",
+    SettingsEditor.RemoveLimitHook(coexist) == userStop,
+    SettingsEditor.RemoveLimitHook(coexist));
+
 // ---- real-file test ------------------------------------------------------
 
 if (args.Length > 0 && File.Exists(args[0]))

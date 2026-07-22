@@ -38,11 +38,16 @@ public partial class MainWindow : Window
 
     private GlobalHotkey? _hotkey;
 
+    /// <summary>Instant rate-limit notice from the optional Claude Code hook.</summary>
+    private readonly LimitSignalWatcher _limitSignals = new();
+
 
     public MainWindow()
     {
         InitializeComponent();
         AccountList.ItemsSource = _items;
+        RestoreWindowPlacement();
+
         Loaded += (_, _) =>
         {
             Refresh();
@@ -51,10 +56,13 @@ public partial class MainWindow : Window
             _ = DelayThenRefreshAllAsync();
         };
 
+        _limitSignals.Received += signal =>
+            Dispatcher.BeginInvoke(() => OnSessionRateLimited(signal));
+
         // A language change re-reads every string. Item-template text refreshes when the list
         // is rebuilt; the static chrome is re-set here.
         Loc.Changed += Relocalize;
-        Closed += (_, _) => { Loc.Changed -= Relocalize; _hotkey?.Dispose(); };
+        Closed += (_, _) => { Loc.Changed -= Relocalize; _hotkey?.Dispose(); _limitSignals.Dispose(); };
 
         // Tint the native title bar and register the global hotkey once the window has a handle.
         SourceInitialized += (_, _) =>
@@ -102,17 +110,21 @@ public partial class MainWindow : Window
     /// <summary>Switches to the next switchable account after the active one — the hotkey action.</summary>
     private void CycleToNextAccount()
     {
-        var switchable = _items.Where(i => !i.NeedsReauth).ToList();
+        // The active account stays in the ring even when excluded, so cycling away from it works;
+        // an excluded account is only ever skipped as a destination.
+        var switchable = _items.Where(i => !i.NeedsReauth && (i.IsActive || !i.Profile.ExcludeFromAuto)).ToList();
         if (switchable.Count < 2) return;
 
         var activeIndex = switchable.FindIndex(i => i.IsActive);
         var next = switchable[(activeIndex + 1) % switchable.Count];
-        if (!next.IsActive) SwitchTo(next.Profile);
+        if (!next.IsActive) SwitchTo(next.Profile, silent: true);
     }
 
     /// <summary>Closing the window parks the app in the tray; only the tray menu really exits.</summary>
     protected override void OnClosing(CancelEventArgs e)
     {
+        SaveWindowPlacement();
+
         if (!App.IsShuttingDown)
         {
             e.Cancel = true;
@@ -124,11 +136,57 @@ public partial class MainWindow : Window
         base.OnClosing(e);
     }
 
+    // ── window placement ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Reopens the window where it was left. A saved rectangle is only honoured when it still
+    /// falls on a connected monitor — otherwise unplugging a second screen would strand the
+    /// window off-screen with no way to get it back.
+    /// </summary>
+    private void RestoreWindowPlacement()
+    {
+        var s = App.Settings;
+        if (s.WindowWidth < MinWidth || s.WindowHeight < MinHeight) return;
+
+        var rect = new System.Drawing.Rectangle(
+            (int)s.WindowLeft, (int)s.WindowTop, (int)s.WindowWidth, (int)s.WindowHeight);
+
+        if (!System.Windows.Forms.Screen.AllScreens.Any(screen => screen.WorkingArea.IntersectsWith(rect)))
+            return;
+
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = s.WindowLeft;
+        Top = s.WindowTop;
+        Width = s.WindowWidth;
+        Height = s.WindowHeight;
+    }
+
+    private void SaveWindowPlacement()
+    {
+        // RestoreBounds carries the normal-state rectangle even while maximized or minimized.
+        var bounds = WindowState == WindowState.Normal
+            ? new Rect(Left, Top, Width, Height)
+            : RestoreBounds;
+
+        if (bounds.Width < MinWidth || bounds.Height < MinHeight) return;
+
+        var s = App.Settings;
+        if (Math.Abs(s.WindowLeft - bounds.Left) < 1 && Math.Abs(s.WindowTop - bounds.Top) < 1 &&
+            Math.Abs(s.WindowWidth - bounds.Width) < 1 && Math.Abs(s.WindowHeight - bounds.Height) < 1)
+            return;   // nothing moved; skip the write
+
+        s.WindowLeft = bounds.Left;
+        s.WindowTop = bounds.Top;
+        s.WindowWidth = bounds.Width;
+        s.WindowHeight = bounds.Height;
+        s.Save();
+    }
+
     // ── data ────────────────────────────────────────────────────────────────
 
     public void Refresh()
     {
-        var profiles = _store.LoadAll();
+        var profiles = SortProfiles(_store.LoadAll());
         var activeUuid = CurrentAccountUuid();
         var activeEmail = AccountSwitcher.CurrentEmail();
 
@@ -158,10 +216,38 @@ public partial class MainWindow : Window
         var currentIsSaved = _items.Any(i => i.IsActive);
         SaveCurrentButton.IsEnabled = activeEmail is not null && !currentIsSaved;
 
+        // Feeds the optional Claude Code status line, which can't read ~/.claude.json itself.
+        ClaudeCodeIntegration.WriteActiveLabel(
+            _items.FirstOrDefault(i => i.IsActive)?.DisplayName ?? activeEmail ?? "");
+
         App.Tray?.Rebuild(_items.ToList());
 
         _ = RefreshUsageAsync(force: false);
     }
+
+    /// <summary>
+    /// Orders the list the way the user asked. "Recent" is the store's own order; the point of
+    /// offering alternatives is that with several accounts the recent order reshuffles under you
+    /// after every switch, which is exactly wrong for muscle memory.
+    /// </summary>
+    private static List<Profile> SortProfiles(IEnumerable<Profile> profiles) => App.Settings.AccountSort switch
+    {
+        "name" => profiles.OrderBy(p => p.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList(),
+        "free" => profiles.OrderBy(p => p.UsageFiveHourPercent ?? 101)
+                          .ThenBy(p => p.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList(),
+        "plan" => profiles.OrderBy(p => PlanRank(p.SubscriptionType))
+                          .ThenBy(p => p.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList(),
+        _ => profiles.ToList(),
+    };
+
+    private static int PlanRank(string subscription) => subscription.ToUpperInvariant() switch
+    {
+        "ENTERPRISE" => 0,
+        "TEAM" => 1,
+        "MAX" => 2,
+        "PRO" => 3,
+        _ => 4,
+    };
 
     /// <summary>Minimum gap between usage fetches for one account — the endpoint 429s if hit hard.</summary>
     private static readonly TimeSpan UsageCacheTtl = TimeSpan.FromMinutes(5);
@@ -293,7 +379,40 @@ public partial class MainWindow : Window
         NotifyLimitIfNeeded(active, pct);
 
         if (App.Settings.AutoSwitch && pct >= App.Settings.AutoSwitchThreshold)
-            AutoSwitchIfWorthwhile(active, mostFree);
+        {
+            // The badge may point at an account the user has ring-fenced (a work or client seat).
+            // Suggesting it is fine; moving into it unattended is not.
+            var target = usableInactive
+                .Where(i => !i.Profile.ExcludeFromAuto)
+                .OrderBy(i => i.FiveHourValue)
+                .FirstOrDefault();
+
+            AutoSwitchIfWorthwhile(active, target);
+        }
+    }
+
+    /// <summary>
+    /// A live session just got rate-limited and the optional hook told us straight away. Say so
+    /// now, and point at somewhere to go — waiting for the next poll would be up to ten minutes
+    /// of the user staring at a blocked session.
+    /// </summary>
+    private void OnSessionRateLimited(LimitSignalWatcher.Signal signal)
+    {
+        if (!string.Equals(signal.ErrorType, "rate_limit", StringComparison.OrdinalIgnoreCase)) return;
+
+        var target = _items
+            .Where(i => !i.IsActive && !i.NeedsReauth && !i.Profile.ExcludeFromAuto && i.HasUsage)
+            .OrderBy(i => i.FiveHourValue)
+            .FirstOrDefault();
+
+        App.Tray?.Notify(
+            Loc.T("notify.rateLimitedTitle"),
+            target is null
+                ? Loc.T("notify.rateLimitedBody")
+                : Loc.T("notify.rateLimitedSuggest", target.DisplayName, (int)target.FiveHourValue));
+
+        // The numbers behind that suggestion are now the most interesting thing on screen.
+        _ = RefreshAllAccountsAsync();
     }
 
     private void NotifyLimitIfNeeded(AccountItem active, double pct)
@@ -493,8 +612,12 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Applies a profile. Shared by the window buttons and the tray menu.</summary>
-    internal void SwitchTo(Profile profile)
+    /// <summary>
+    /// Applies a profile. Shared by the window buttons, the tray menu, the hotkey, and
+    /// auto-switch. <paramref name="silent"/> suppresses the balloon for switches the user
+    /// triggered without looking at the screen.
+    /// </summary>
+    internal void SwitchTo(Profile profile, bool silent = false)
     {
         try
         {
@@ -511,10 +634,13 @@ public partial class MainWindow : Window
             Refresh();
 
             // No restart nagging: Claude Code picks up the new credentials on the next message,
-            // so open sessions can just keep going.
-            const string note = "Just keep going in your open sessions.";
-            ShowStatus($"Switched to {profile.DisplayName}. {note}");
-            App.Tray?.Notify("Account switched", $"{profile.DisplayName}\n{note}");
+            // so open sessions can just keep going. When we can name them, do — knowing exactly
+            // which windows are about to change hands is more use than a generic reassurance.
+            var note = LiveSessionNote() ?? Loc.T("switch.keepGoing");
+            ShowStatus(Loc.T("switch.done", profile.DisplayName) + " " + note);
+
+            if (!silent && App.Settings.SwitchNotifications)
+                App.Tray?.Notify(Loc.T("switch.title"), $"{profile.DisplayName}\n{note}");
 
             // Only warn when the account is genuinely un-restorable — i.e. its REFRESH token has
             // expired. An expired ACCESS token is normal and self-heals: Claude Code (and our own
@@ -532,6 +658,28 @@ public partial class MainWindow : Window
         {
             ShowError("Switch failed", ex);
         }
+    }
+
+    /// <summary>
+    /// Names the Claude Code sessions running right now, so the user knows what the switch
+    /// just applied to. Null when there are none, or when the setting is off.
+    /// </summary>
+    private static string? LiveSessionNote()
+    {
+        if (!App.Settings.ShowLiveSessions) return null;
+
+        // Several sessions in one project share a label, so collapse duplicates — "foo, foo"
+        // reads like a bug, not information.
+        var labels = LiveSessions.Running()
+            .Select(s => s.Label)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (labels.Count == 0) return null;
+
+        var named = string.Join(", ", labels.Take(2));
+        if (labels.Count > 2) named += $" +{labels.Count - 2}";
+
+        return Loc.T("switch.liveSessions", named);
     }
 
     private void UseButton_Click(object sender, RoutedEventArgs e)
@@ -837,6 +985,8 @@ public partial class MainWindow : Window
         rename.Click += (_, _) => RenameProfile(item);
         menu.Items.Add(rename);
 
+        menu.Items.Add(BuildColorMenu(item));
+
         var refreshTokens = new MenuItem
         {
             Header = Loc.T("menu.refreshTokens"),
@@ -848,9 +998,66 @@ public partial class MainWindow : Window
 
         menu.Items.Add(new Separator());
 
+        var exclude = new MenuItem
+        {
+            Header = Loc.T("menu.excludeFromAuto"),
+            ToolTip = Loc.T("menu.excludeFromAutoTip"),
+            IsCheckable = true,
+            IsChecked = item.Profile.ExcludeFromAuto,
+        };
+        exclude.Click += (_, _) =>
+        {
+            item.Profile.ExcludeFromAuto = exclude.IsChecked;
+            _store.Save(item.Profile);
+            Refresh();
+        };
+        menu.Items.Add(exclude);
+
+        menu.Items.Add(new Separator());
+
         var delete = new MenuItem { Header = Loc.T("menu.delete") };
         delete.Click += (_, _) => DeleteProfile(item);
         menu.Items.Add(delete);
+    }
+
+    /// <summary>
+    /// Colour submenu for the account avatar. Personal, work, and client accounts often share
+    /// an email prefix, so the generated initial collides and the list stops being scannable.
+    /// </summary>
+    private MenuItem BuildColorMenu(AccountItem item)
+    {
+        var root = new MenuItem { Header = Loc.T("menu.color") };
+
+        var none = new MenuItem
+        {
+            Header = Loc.T("menu.colorDefault"),
+            IsCheckable = true,
+            IsChecked = string.IsNullOrEmpty(item.Profile.Color),
+        };
+        none.Click += (_, _) => SetColor(item, "");
+        root.Items.Add(none);
+
+        foreach (var accent in ThemeManager.Accents)
+        {
+            var entry = new MenuItem
+            {
+                Header = accent.Name,
+                IsCheckable = true,
+                IsChecked = item.Profile.Color == accent.Key,
+            };
+            var key = accent.Key;
+            entry.Click += (_, _) => SetColor(item, key);
+            root.Items.Add(entry);
+        }
+
+        return root;
+    }
+
+    private void SetColor(AccountItem item, string color)
+    {
+        item.Profile.Color = color;
+        _store.Save(item.Profile);
+        Refresh();
     }
 
     private void RenameProfile(AccountItem item)
@@ -958,8 +1165,43 @@ internal sealed class AccountItem : INotifyPropertyChanged
     public bool IsActive
     {
         get => _isActive;
-        set { _isActive = value; OnPropertyChanged(); }
+        set
+        {
+            _isActive = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AvatarBrush));
+            OnPropertyChanged(nameof(AvatarTextBrush));
+        }
     }
+
+    // ── avatar ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The account's own colour when it has one, the accent when it's active, otherwise a
+    /// neutral chip. A chosen colour outranks the active tint so the colour you assigned is
+    /// always the thing you recognise the row by.
+    /// </summary>
+    public System.Windows.Media.Brush AvatarBrush
+    {
+        get
+        {
+            if (ThemeManager.Accents.FirstOrDefault(a => a.Key == Profile.Color) is { Key: not null } accent)
+                return new System.Windows.Media.SolidColorBrush(ThemeManager.Parse(accent.Base));
+
+            return Resource(IsActive ? "Accent" : "SurfaceHi");
+        }
+    }
+
+    public System.Windows.Media.Brush AvatarTextBrush =>
+        IsActive || !string.IsNullOrEmpty(Profile.Color)
+            ? System.Windows.Media.Brushes.White
+            : Resource("TextSecondary");
+
+    public System.Windows.Visibility ExcludedVisibility =>
+        Profile.ExcludeFromAuto ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+
+    private static System.Windows.Media.Brush Resource(string key)
+        => (System.Windows.Media.Brush)System.Windows.Application.Current.Resources[key];
 
     // ── real usage (from /api/oauth/usage) ───────────────────────────────────
 
