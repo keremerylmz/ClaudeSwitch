@@ -11,7 +11,7 @@
     <AssemblyName>ClaudeSwitch</AssemblyName>
     <RootNamespace>ClaudeSwitch</RootNamespace>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>0.3.4</Version>
+    <Version>0.3.5</Version>
     <Product>ClaudeSwitch</Product>
     <Description>One-click Claude Code account switcher for CLI and VS Code</Description>
 

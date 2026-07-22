@@ -285,8 +285,15 @@
         <Border Grid.Row="2" Background="{DynamicResource Surface}"
                 BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
                 Padding="20,13">
-            <Button x:Name="DoneButton" Style="{StaticResource PrimaryButton}" Content="Done"
-                    HorizontalAlignment="Right" Padding="22,9" Click="Close_Click"/>
+            <Grid>
+                <!-- The footer had a lone right-aligned button and a lot of empty space; the
+                     version is the one thing worth putting there, and it balances the row. -->
+                <TextBlock x:Name="VersionText" HorizontalAlignment="Left" VerticalAlignment="Center"
+                           FontSize="{StaticResource FontCaption}"
+                           Foreground="{DynamicResource TextMuted}"/>
+                <Button x:Name="DoneButton" Style="{StaticResource PrimaryButton}" Content="Done"
+                        HorizontalAlignment="Right" Padding="22,9" Click="Close_Click"/>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

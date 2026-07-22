@@ -45,6 +45,9 @@ public partial class SettingsPanel : System.Windows.Controls.UserControl
         LimitHookToggle.IsChecked = ClaudeCodeIntegration.LimitHookState() == ClaudeCodeIntegration.State.Ours;
         _loading = false;
 
+        // Not localized: a version number reads the same in every language.
+        VersionText.Text = $"ClaudeSwitch {UpdateChecker.Current}";
+
         BuildPillLists();
         Localize();
     }
