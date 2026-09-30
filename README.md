@@ -38,16 +38,16 @@ Claude Code**, and adds the thing that actually matters day-to-day:
 
 <table align="center">
   <tr>
-    <td align="center"><img src="docs/screenshot-light.png" alt="ClaudeSwitch — light theme" width="360"></td>
-    <td align="center"><img src="docs/screenshot-dark.png" alt="ClaudeSwitch — dark theme" width="360"></td>
+    <td align="center" valign="top"><img src="docs/switch.gif" alt="Switching accounts: the cards trade places, the new account lights up, and a note confirms the switch." width="400"></td>
+    <td align="center" valign="top"><img src="docs/add-account.gif" alt="Adding an account: copy the sign-in link, sign in, and the new account appears in the list." width="400"></td>
   </tr>
   <tr>
-    <td align="center"><sub>Light theme</sub></td>
-    <td align="center"><sub>Dark theme</sub></td>
+    <td align="center"><sub><b>Switch in one click</b> — even mid-conversation</sub></td>
+    <td align="center"><sub><b>Add an account</b> — in your own browser, or by link</sub></td>
   </tr>
 </table>
 
-<p align="center"><sub>Real usage %, live reset times · light & dark themes · 7 languages · compact mode</sub></p>
+<p align="center"><sub>Real usage % and live reset times · light, dark, or follow Windows · compact mode · 7 languages</sub></p>
 
 ---
 
