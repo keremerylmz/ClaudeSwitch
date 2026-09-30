@@ -438,6 +438,7 @@ public partial class MainWindow : Window
         var currentIsSaved = _items.Any(i => i.IsActive);
         SaveCurrentButton.IsEnabled = activeEmail is not null && !currentIsSaved;
 
+        UpdateMostFree();
         _listAnimator.Play(ActiveItem?.Profile.Id);
 
         // Feeds the optional Claude Code status line, which can't read ~/.claude.json itself.
@@ -589,13 +590,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void UpdateSmartState()
     {
-        var usableInactive = _items
-            .Where(i => !i.IsActive && !i.NeedsReauth && i.HasUsage)
-            .ToList();
-
-        // The account with the most 5-hour headroom right now.
-        var mostFree = usableInactive.OrderBy(i => i.FiveHourValue).FirstOrDefault();
-        foreach (var i in _items) i.IsMostFree = ReferenceEquals(i, mostFree) && usableInactive.Count > 0;
+        var usableInactive = UpdateMostFree();
 
         var active = _items.FirstOrDefault(i => i.IsActive);
         App.Tray?.SetActiveUsage(active is { HasUsage: true } ? active.FiveHourValue : (double?)null,
@@ -618,6 +613,24 @@ public partial class MainWindow : Window
 
             AutoSwitchIfWorthwhile(active, target);
         }
+    }
+
+    /// <summary>
+    /// Puts the "most free" badge on the inactive account with the most 5-hour headroom, and
+    /// returns the inactive accounts that could take a switch. Run on every list rebuild as well
+    /// as after a fetch: the rebuilt cards start without the badge, and waiting for the next fetch
+    /// left it missing for up to ten minutes after every switch.
+    /// </summary>
+    private List<AccountItem> UpdateMostFree()
+    {
+        var usableInactive = _items
+            .Where(i => !i.IsActive && !i.NeedsReauth && i.HasUsage)
+            .ToList();
+
+        var mostFree = usableInactive.OrderBy(i => i.FiveHourValue).FirstOrDefault();
+        foreach (var i in _items) i.IsMostFree = ReferenceEquals(i, mostFree);
+
+        return usableInactive;
     }
 
     /// <summary>
