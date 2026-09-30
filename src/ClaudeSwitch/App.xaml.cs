@@ -21,6 +21,16 @@ public partial class App : Application
     /// <summary>App-wide preferences (theme, compact, language). Loaded once at startup.</summary>
     internal static AppSettings Settings { get; private set; } = new();
 
+    public App()
+    {
+        // During an add-account login, Claude Code launches this exe as its "browser" to hand
+        // over the sign-in URL (see LoginSession). That instance only drops the URL off and
+        // leaves — before resources load, and long before the single-instance check would
+        // mistake it for the user starting the app twice.
+        if (LoginSession.TryCatchHandoff(Environment.GetCommandLineArgs()))
+            Environment.Exit(0);
+    }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         // A second instance could race the first one writing credentials — allow only one.
@@ -102,9 +112,9 @@ public partial class App : Application
             });
         };
 
-        // Temp browser profiles from previous logins are still locked when a login finishes,
-        // so they get cleared here instead.
-        PrivateBrowser.SweepOldProfiles();
+        // A login interrupted by a crash leaves its scratch directory — credentials included —
+        // in %TEMP%; nothing of ours can be using one yet, so clear them now.
+        LoginSession.SweepLeftovers();
 
         // If we just restarted into a freshly installed build, the previous exe is sitting next
         // to us as ".old" — deletable now that nothing is running from it.

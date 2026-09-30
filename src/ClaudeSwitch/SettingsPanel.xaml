@@ -33,6 +33,87 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="14,4"/>
         </Style>
+
+        <!-- One choice in a row of choices (theme, sort, language…). A real button, so it can be
+             reached with Tab and read by a screen reader; Tag="on" marks the current choice. -->
+        <Style x:Key="Pill" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+            <Setter Property="Background" Value="{DynamicResource Bg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="root" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <ScaleTransform x:Name="press"/>
+                            </Grid.RenderTransform>
+                            <Border x:Name="bd" CornerRadius="9" BorderThickness="1"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"/>
+                            <Border x:Name="hover" CornerRadius="9" BorderThickness="1" Opacity="0"
+                                    Background="{DynamicResource SurfaceHi}"
+                                    BorderBrush="{DynamicResource BorderStrong}"/>
+                            <ContentPresenter Margin="13,8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="hover" Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="{StaticResource HoverIn}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="hover" Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="{StaticResource HoverOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="press" Storyboard.TargetProperty="ScaleX"
+                                                             To="0.95" Duration="0:0:0.08" EasingFunction="{StaticResource EaseOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="press" Storyboard.TargetProperty="ScaleY"
+                                                             To="0.95" Duration="0:0:0.08" EasingFunction="{StaticResource EaseOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="press" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.34" EasingFunction="{StaticResource SpringOut}"/>
+                                            <DoubleAnimation Storyboard.TargetName="press" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.34" EasingFunction="{StaticResource SpringOut}"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <!-- Declared last so the chosen pill never shows the hover wash. -->
+                            <Trigger Property="Tag" Value="on">
+                                <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBorder}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1.4"/>
+                                <Setter TargetName="hover" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -47,12 +128,12 @@
                 BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
                 Padding="12,15,20,15">
             <StackPanel Orientation="Horizontal">
-                <!-- U+2190 renders hairline-thin next to the SemiBold title beside it; a touch
-                     of weight is what makes it read as a control rather than a stray glyph. -->
                 <Button x:Name="BackButton" Style="{StaticResource IconButton}"
-                        Content="&#x2190;" FontSize="18" FontWeight="SemiBold"
+                        Content="&#xE72B;" FontSize="14"
                         VerticalAlignment="Center"
-                        Click="Close_Click"/>
+                        AutomationProperties.Name="{loc:Tr settings.done}"
+                        Click="Close_Click"
+                        xmlns:loc="clr-namespace:ClaudeSwitch"/>
                 <TextBlock x:Name="TitleText" Text="Settings" VerticalAlignment="Center"
                            Margin="6,0,0,0"
                            FontSize="{StaticResource FontTitle}" FontWeight="SemiBold"
@@ -61,7 +142,7 @@
         </Border>
 
         <ScrollViewer Grid.Row="1" Style="{StaticResource ListScroll}">
-            <StackPanel Margin="20,4,20,20">
+            <StackPanel x:Name="Sections" Margin="20,4,20,20">
 
                 <!-- ══════════════ Appearance ══════════════ -->
                 <TextBlock x:Name="AppearanceHeader" Text="APPEARANCE" Style="{StaticResource SectionHeader}"/>
@@ -71,11 +152,7 @@
                         <StackPanel Margin="0,12,0,12">
                             <TextBlock x:Name="ThemeTitle" Text="Theme" Style="{StaticResource RowText}"/>
                             <TextBlock x:Name="ThemeDesc" Style="{StaticResource RowDesc}"/>
-                            <ItemsControl x:Name="ThemeList" Margin="0,8,0,0">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
+                            <WrapPanel x:Name="ThemeList" Margin="0,8,0,0"/>
                         </StackPanel>
 
                         <Border x:Name="TranslucentDivider" Height="1" Background="{DynamicResource Border}"/>
@@ -137,11 +214,15 @@
                         <StackPanel Margin="0,12,0,12">
                             <TextBlock x:Name="SortTitle" Text="Sort accounts by" Style="{StaticResource RowText}"/>
                             <TextBlock x:Name="SortDesc" Style="{StaticResource RowDesc}"/>
-                            <ItemsControl x:Name="SortList" Margin="0,8,0,0">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
+                            <WrapPanel x:Name="SortList" Margin="0,8,0,0"/>
+                        </StackPanel>
+
+                        <Border Height="1" Background="{DynamicResource Border}"/>
+
+                        <StackPanel Margin="0,12,0,12">
+                            <TextBlock x:Name="SignInTitle" Text="When adding an account" Style="{StaticResource RowText}"/>
+                            <TextBlock x:Name="SignInDesc" Style="{StaticResource RowDesc}"/>
+                            <WrapPanel x:Name="SignInList" Margin="0,8,0,0"/>
                         </StackPanel>
 
                         <Border Height="1" Background="{DynamicResource Border}"/>
@@ -190,11 +271,7 @@
                         <StackPanel Margin="0,12,0,12">
                             <TextBlock x:Name="ThresholdTitle" Text="Switch at" Style="{StaticResource RowText}"/>
                             <TextBlock x:Name="ThresholdDesc" Style="{StaticResource RowDesc}"/>
-                            <ItemsControl x:Name="ThresholdList" Margin="0,8,0,0">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
+                            <WrapPanel x:Name="ThresholdList" Margin="0,8,0,0"/>
                         </StackPanel>
 
                         <Border Height="1" Background="{DynamicResource Border}"/>
@@ -309,11 +386,7 @@
 
                 <Border Background="{DynamicResource Surface}" CornerRadius="10"
                         BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="8">
-                    <ItemsControl x:Name="LanguageList">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                    </ItemsControl>
+                    <WrapPanel x:Name="LanguageList"/>
                 </Border>
 
             </StackPanel>

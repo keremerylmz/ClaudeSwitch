@@ -3,8 +3,14 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
+using ClaudeSwitch.Controls;
 using ClaudeSwitch.Core;
+using Brush = System.Windows.Media.Brush;
+using Brushes = System.Windows.Media.Brushes;
+using Color = System.Windows.Media.Color;
+using Orientation = System.Windows.Controls.Orientation;
 
 namespace ClaudeSwitch;
 
@@ -13,22 +19,13 @@ public partial class MainWindow : Window
     private readonly ProfileStore _store = new();
     private readonly AccountSwitcher _switcher = new();
     private readonly ObservableCollection<AccountItem> _items = [];
+    private readonly ListAnimator _listAnimator;
 
     /// <summary>Guards against overlapping usage fetches when refreshes come in bursts.</summary>
     private int _usageFetchInFlight;
 
-    /// <summary>The login in progress, if any. Non-null means the button acts as "cancel".</summary>
-    private LoginSession? _login;
-    private CancellationTokenSource? _loginCancel;
-
-    /// <summary>Throwaway CLAUDE_CONFIG_DIR the in-progress login writes into.</summary>
-    private string? _loginConfigDir;
-
-    /// <summary>Throwaway browser profile backing the session-free login window.</summary>
-    private string? _browserProfileDir;
-
     /// <summary>Periodic refresh of every account's usage — including inactive ones.</summary>
-    private System.Windows.Threading.DispatcherTimer? _usageTimer;
+    private DispatcherTimer? _usageTimer;
     private int _refreshAllInFlight;
 
     // Smart-limit state.
@@ -41,11 +38,16 @@ public partial class MainWindow : Window
     /// <summary>Instant rate-limit notice from the optional Claude Code hook.</summary>
     private readonly LimitSignalWatcher _limitSignals = new();
 
+    /// <summary>The add-account sheet, built the first time someone adds an account.</summary>
+    private AddAccountSheet? _sheet;
+
+    private bool _shownOnce;
 
     public MainWindow()
     {
         InitializeComponent();
         AccountList.ItemsSource = _items;
+        _listAnimator = new ListAnimator(AccountList, item => ((AccountItem)item).Profile.Id);
         RestoreWindowPlacement();
 
         Loaded += (_, _) =>
@@ -56,13 +58,23 @@ public partial class MainWindow : Window
             _ = DelayThenRefreshAllAsync();
         };
 
+        // Coming back from the tray or mini mode, the page settles into place instead of
+        // popping. The very first show is left to the list's own staggered entrance.
+        IsVisibleChanged += (_, e) =>
+        {
+            if (e.NewValue is not true) return;
+            if (_shownOnce) Motion.Rise(MainContent, 8, Motion.Medium);
+            _shownOnce = true;
+        };
+
         _limitSignals.Received += signal =>
             Dispatcher.BeginInvoke(() => OnSessionRateLimited(signal));
 
-        // A language change re-reads every string. Item-template text refreshes when the list
-        // is rebuilt; the static chrome is re-set here.
-        Loc.Changed += Relocalize;
-        Closed += (_, _) => { Loc.Changed -= Relocalize; _hotkey?.Dispose(); _limitSignals.Dispose(); };
+        // A language change re-reads every string. Everything written as {loc:Tr} updates by
+        // itself; card text built in C# (subtitles, "updated 3m ago", reset countdowns) is not
+        // bound, so the items are rebuilt to pick the new language up.
+        Loc.Changed += Refresh;
+        Closed += (_, _) => { Loc.Changed -= Refresh; _hotkey?.Dispose(); _limitSignals.Dispose(); };
 
         // Tint the native title bar and register the global hotkey once the window has a handle.
         SourceInitialized += (_, _) =>
@@ -75,7 +87,7 @@ public partial class MainWindow : Window
         // Keep every account's usage current — the active one from its live token, the rest by
         // refreshing their stored tokens. Runs while the app lives in the tray, not just when the
         // window is open, so the numbers are fresh whenever you glance at them.
-        _usageTimer = new System.Windows.Threading.DispatcherTimer
+        _usageTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMinutes(10),
         };
@@ -91,23 +103,6 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Handles the two things a language change does NOT fix on its own.
-    ///
-    /// Everything written as {loc:Tr} now re-reads itself, so assigning those by hand here would
-    /// be worse than redundant: a local value replaces a binding, which would quietly break the
-    /// live updates for every later change.
-    /// </summary>
-    private void Relocalize()
-    {
-        // This label depends on whether a login is in flight, so no single key describes it.
-        AddAccountButton.Content = _login is null ? Loc.T("footer.addAccount") : Loc.T("footer.cancel");
-
-        // Card text built in C# (subtitles, "updated 3m ago", reset countdowns) is not bound,
-        // so the items are rebuilt to pick the new language up.
-        Refresh();
-    }
-
-    /// <summary>
     /// Puts the window on Mica when the setting is on and the OS supports it. The window's own
     /// background has to go transparent for the material to show — so when Mica is NOT in play,
     /// the themed opaque background is restored, otherwise the content would float on nothing.
@@ -118,7 +113,7 @@ public partial class MainWindow : Window
 
         if (mica)
         {
-            Background = System.Windows.Media.Brushes.Transparent;
+            Background = Brushes.Transparent;
         }
         else
         {
@@ -136,19 +131,25 @@ public partial class MainWindow : Window
 
     private void MiniButton_Click(object sender, RoutedEventArgs e) => App.EnterMiniMode();
 
+    private void SearchButton_Click(object sender, RoutedEventArgs e) => ShowPalette();
+
     // ── settings layer ──────────────────────────────────────────────────────
 
     private SettingsPanel? _settingsPanel;
+    private bool _settingsShown;
 
-    /// <summary>True while the settings layer is on screen (or fading in).</summary>
-    public bool SettingsOpen => SettingsLayer.Visibility == Visibility.Visible;
+    /// <summary>True while the settings layer is on screen or on its way in.</summary>
+    public bool SettingsOpen => _settingsShown;
 
-    private static readonly TimeSpan LayerFade = TimeSpan.FromMilliseconds(180);
-
-    /// <summary>Fades the preferences layer in over the account list.</summary>
+    /// <summary>
+    /// Slides the preferences in over the account list — a push, the same "one level deeper"
+    /// gesture Windows uses everywhere: the settings arrive from the right while the page beneath
+    /// drifts a little the other way.
+    /// </summary>
     public void ShowSettings()
     {
-        if (SettingsOpen) return;
+        if (_settingsShown) return;
+        _settingsShown = true;
 
         // Built on first use, not at startup: most sessions never open it, and this is a tray
         // app whose whole point is staying small.
@@ -159,42 +160,45 @@ public partial class MainWindow : Window
             SettingsLayer.Children.Add(_settingsPanel);
         }
 
+        HidePalette();
         SettingsLayer.Visibility = Visibility.Visible;
-        Animate(to: 1, shiftTo: 0, onDone: null);
+
+        Motion.To(SettingsLayer, OpacityProperty, 1, Motion.Medium, Motion.Enter);
+        Motion.To(SettingsShift, TranslateTransform.XProperty, 0, Motion.Long, Motion.Enter);
+        Motion.To(Motion.Transforms(MainContent).Shift, TranslateTransform.XProperty, -24, Motion.Long, Motion.Enter);
+
+        _settingsPanel.PlayEntrance();
+
+        // Focus follows the user into the layer. Left on the gear underneath, its focus ring —
+        // drawn in the adorner layer, above everything — would show straight through the panel.
+        _settingsPanel.FocusFirst();
     }
 
     public void HideSettings()
     {
-        if (!SettingsOpen) return;
-        Animate(to: 0, shiftTo: 10, onDone: () => SettingsLayer.Visibility = Visibility.Collapsed);
+        if (!_settingsShown) return;
+        _settingsShown = false;
+
+        Motion.To(SettingsShift, TranslateTransform.XProperty, 28, Motion.Short, Motion.Exit);
+        Motion.To(Motion.Transforms(MainContent).Shift, TranslateTransform.XProperty, 0, Motion.Medium, Motion.Enter);
+        Motion.To(SettingsLayer, OpacityProperty, 0, Motion.Short, Motion.Exit,
+                  done: () => SettingsLayer.Visibility = Visibility.Collapsed);
+
+        SettingsButton.Focus();
     }
 
-    private void Animate(double to, double shiftTo, Action? onDone)
-    {
-        var ease = new System.Windows.Media.Animation.CubicEase
-        {
-            EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut,
-        };
-
-        var fade = new System.Windows.Media.Animation.DoubleAnimation(to, LayerFade) { EasingFunction = ease };
-        if (onDone is not null) fade.Completed += (_, _) => onDone();
-
-        var slide = new System.Windows.Media.Animation.DoubleAnimation(shiftTo, LayerFade) { EasingFunction = ease };
-
-        SettingsLayer.BeginAnimation(OpacityProperty, fade);
-        SettingsShift.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slide);
-    }
-
-    /// <summary>Escape backs out of an open layer; Ctrl+K opens the command palette.</summary>
+    /// <summary>Escape backs out of whatever is on top; Ctrl+K opens the command palette.</summary>
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
         if (e.Key == System.Windows.Input.Key.Escape)
         {
+            if (SheetOpen) { _sheet!.Close(); e.Handled = true; return; }
             if (PaletteOpen) { HidePalette(); e.Handled = true; return; }
             if (SettingsOpen) { HideSettings(); e.Handled = true; return; }
         }
 
-        if (e.Key == System.Windows.Input.Key.K &&
+        if (!SheetOpen &&
+            e.Key == System.Windows.Input.Key.K &&
             (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0 &&
             !SettingsOpen)
         {
@@ -208,26 +212,41 @@ public partial class MainWindow : Window
 
     // ── command palette ──────────────────────────────────────────────────────
 
-    public bool PaletteOpen => PaletteLayer.Visibility == Visibility.Visible;
+    private bool _paletteShown;
 
-    /// <summary>Fades in the type-to-switch overlay, focused and pre-filled with every account.</summary>
+    public bool PaletteOpen => _paletteShown;
+
+    /// <summary>Drops in the type-to-switch card, focused and pre-filled with every account.</summary>
     public void ShowPalette()
     {
-        if (_items.Count == 0) return;
+        if (_items.Count == 0 || _paletteShown || SheetOpen) return;
+        _paletteShown = true;
 
         PaletteBox.Text = "";
         FilterPalette("");
         PaletteLayer.Visibility = Visibility.Visible;
-        AnimateLayer(PaletteLayer, PaletteShift, to: 1, shiftTo: 0, onDone: null);
+
+        var (scale, shift) = Motion.Transforms(PaletteCard);
+        Motion.To(PaletteBackdrop, OpacityProperty, 1, Motion.Short, Motion.Standard);
+        Motion.To(PaletteCard, OpacityProperty, 1, Motion.Short, Motion.Enter);
+        Motion.To(scale, ScaleTransform.ScaleXProperty, 1, Motion.Medium, Motion.Enter, from: 0.95);
+        Motion.To(scale, ScaleTransform.ScaleYProperty, 1, Motion.Medium, Motion.Enter, from: 0.95);
+        Motion.To(shift, TranslateTransform.YProperty, 0, Motion.Medium, Motion.Enter, from: -12);
 
         PaletteBox.Focus();
     }
 
     public void HidePalette()
     {
-        if (!PaletteOpen) return;
-        AnimateLayer(PaletteLayer, PaletteShift, to: 0, shiftTo: -8,
-            onDone: () => PaletteLayer.Visibility = Visibility.Collapsed);
+        if (!_paletteShown) return;
+        _paletteShown = false;
+
+        var (scale, _) = Motion.Transforms(PaletteCard);
+        Motion.To(PaletteBackdrop, OpacityProperty, 0, Motion.Short, Motion.Exit);
+        Motion.To(scale, ScaleTransform.ScaleXProperty, 0.97, Motion.Quick, Motion.Exit);
+        Motion.To(scale, ScaleTransform.ScaleYProperty, 0.97, Motion.Quick, Motion.Exit);
+        Motion.To(PaletteCard, OpacityProperty, 0, Motion.Quick, Motion.Exit,
+                  done: () => PaletteLayer.Visibility = Visibility.Collapsed);
     }
 
     private void FilterPalette(string query)
@@ -246,8 +265,11 @@ public partial class MainWindow : Window
         if (PaletteList.Items.Count > 0) PaletteList.SelectedIndex = 0;
     }
 
-    private void PaletteBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
-        => FilterPalette(PaletteBox.Text);
+    private void PaletteBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        PalettePlaceholder.Visibility = PaletteBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        FilterPalette(PaletteBox.Text);
+    }
 
     private void PaletteBox_KeyDown(object sender, KeyEventArgs e)
     {
@@ -279,7 +301,7 @@ public partial class MainWindow : Window
     {
         // Only a click on the dimmed backdrop itself dismisses; clicks inside the card bubble up
         // here too, so ignore anything that landed on a real control.
-        if (ReferenceEquals(e.OriginalSource, PaletteLayer)) HidePalette();
+        if (ReferenceEquals(e.OriginalSource, PaletteBackdrop)) HidePalette();
     }
 
     private void CommitPalette()
@@ -287,27 +309,6 @@ public partial class MainWindow : Window
         var target = PaletteList.SelectedItem as AccountItem;
         HidePalette();
         if (target is not null && !target.IsActive) SwitchTo(target.Profile);
-    }
-
-    /// <summary>Shared fade+slide for the settings and palette overlays.</summary>
-    private static void AnimateLayer(UIElement layer, System.Windows.Media.TranslateTransform shift,
-                                     double to, double shiftTo, Action? onDone)
-    {
-        var ease = new System.Windows.Media.Animation.CubicEase
-        {
-            EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut,
-        };
-        var fade = new System.Windows.Media.Animation.DoubleAnimation(to, TimeSpan.FromMilliseconds(150))
-        {
-            EasingFunction = ease,
-        };
-        if (onDone is not null) fade.Completed += (_, _) => onDone();
-        var slide = new System.Windows.Media.Animation.DoubleAnimation(shiftTo, TimeSpan.FromMilliseconds(150))
-        {
-            EasingFunction = ease,
-        };
-        layer.BeginAnimation(OpacityProperty, fade);
-        shift.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slide);
     }
 
     /// <summary>Registers or releases the global hotkey to match the current setting.</summary>
@@ -402,17 +403,25 @@ public partial class MainWindow : Window
         var activeUuid = CurrentAccountUuid();
         var activeEmail = AccountSwitcher.CurrentEmail();
 
+        // Note where every card sits, so the rebuilt list can glide from there (see ListAnimator).
+        _listAnimator.Capture();
+
         _items.Clear();
         foreach (var p in profiles)
         {
+            var isActive = !string.IsNullOrEmpty(activeUuid)
+                           && string.Equals(p.AccountUuid, activeUuid, StringComparison.OrdinalIgnoreCase);
+
             _items.Add(new AccountItem(p)
             {
-                IsActive = !string.IsNullOrEmpty(activeUuid)
-                           && string.Equals(p.AccountUuid, activeUuid, StringComparison.OrdinalIgnoreCase),
+                IsActive = isActive,
 
                 // Flagged up front so a dead profile is visible before it's switched into,
-                // instead of surfacing as Claude Code's sign-in screen afterwards.
-                NeedsReauth = !IsProfileUsable(p),
+                // instead of surfacing as Claude Code's sign-in screen afterwards. The account in
+                // use is judged by the live credentials Claude Code keeps fresh — our copy only
+                // catches up at the next switch, and judging by it flagged a perfectly healthy
+                // active account as expired.
+                NeedsReauth = isActive ? !LiveCredentialsUsable() : !IsProfileUsable(p),
 
                 Compact = App.Settings.Compact,
             });
@@ -423,10 +432,13 @@ public partial class MainWindow : Window
         ActiveAccountText.Text = activeEmail is null
             ? Loc.T("app.notSignedIn")
             : Loc.T("app.activePrefix", Redactor.Mask(activeEmail));
+        ActiveDot.Visibility = activeEmail is null ? Visibility.Collapsed : Visibility.Visible;
 
         // An account that is logged in but not yet saved is the main thing a new user needs to do.
         var currentIsSaved = _items.Any(i => i.IsActive);
         SaveCurrentButton.IsEnabled = activeEmail is not null && !currentIsSaved;
+
+        _listAnimator.Play(ActiveItem?.Profile.Id);
 
         // Feeds the optional Claude Code status line, which can't read ~/.claude.json itself.
         ClaudeCodeIntegration.WriteActiveLabel(
@@ -501,7 +513,7 @@ public partial class MainWindow : Window
             var snapshot = await Task.Run(() => UsageApi.FetchAsync(token));
             if (snapshot is null)
             {
-                if (force) ShowStatus("Couldn't fetch usage (rate limit or connection). Try again shortly.");
+                if (force) ShowToast("Couldn't fetch usage (rate limit or connection). Try again shortly.", ToastKind.Warning);
                 return;
             }
 
@@ -703,6 +715,9 @@ public partial class MainWindow : Window
 
                 item.Profile.ExpiresAt = ReadExpiresAt(updated) ?? item.Profile.ExpiresAt;
                 _store.Save(item.Profile, secret);   // persist rotated tokens
+
+                // A refresh that just worked is the best proof there is that the account is alive.
+                item.NeedsReauth = !AccountSwitcher.CredentialsUsable(updated);
             }
             else if (result == TokenRefresher.Result.RefreshTokenDead)
             {
@@ -773,6 +788,20 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Health of the credentials Claude Code is using right now. Never throws.</summary>
+    private static bool LiveCredentialsUsable()
+    {
+        try
+        {
+            return File.Exists(ClaudePaths.CredentialsFile) &&
+                   AccountSwitcher.CredentialsUsable(File.ReadAllText(ClaudePaths.CredentialsFile));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;   // mid-write or locked: not knowing is no reason to cry wolf
+        }
+    }
+
     private static string? CurrentAccountUuid()
     {
         try
@@ -804,8 +833,11 @@ public partial class MainWindow : Window
         UpdateBody.Text = Loc.T("update.body");
         UpdateButton.Content = Loc.T("update.action");
         UpdateButton.IsEnabled = true;
-        UpdateProgressTrack.Visibility = Visibility.Collapsed;
+        UpdateProgress.Visibility = Visibility.Collapsed;
+
+        if (UpdateBanner.Visibility == Visibility.Visible) return;
         UpdateBanner.Visibility = Visibility.Visible;
+        if (IsVisible) Motion.Rise(UpdateBanner, 10, Motion.Long, fromScale: 0.98);
     }
 
     private async void UpdateButton_Click(object sender, RoutedEventArgs e)
@@ -820,12 +852,12 @@ public partial class MainWindow : Window
         _downloading = true;
         UpdateButton.IsEnabled = false;
         UpdateBody.Text = Loc.T("update.downloading", 0);
-        UpdateProgressTrack.Visibility = Visibility.Visible;
-        SetUpdateProgress(0);
+        UpdateProgress.Percent = 0;
+        UpdateProgress.Visibility = Visibility.Visible;
 
         var progress = new Progress<double>(fraction =>
         {
-            SetUpdateProgress(fraction);
+            UpdateProgress.Percent = Math.Clamp(fraction, 0, 1) * 100;
             UpdateBody.Text = Loc.T("update.downloading", (int)(fraction * 100));
         });
 
@@ -839,7 +871,7 @@ public partial class MainWindow : Window
                 // a working build and send them to the release page than install something we
                 // could not vouch for.
                 UpdateBody.Text = Loc.T("update.failed");
-                UpdateProgressTrack.Visibility = Visibility.Collapsed;
+                UpdateProgress.Visibility = Visibility.Collapsed;
                 UpdateButton.Content = Loc.T("update.openPage");
                 UpdateButton.IsEnabled = true;
                 _update = null;
@@ -850,6 +882,7 @@ public partial class MainWindow : Window
             UpdateBody.Text = Loc.T("update.ready");
             UpdateButton.Content = Loc.T("update.restart");
             UpdateButton.IsEnabled = true;
+            Motion.Pop(UpdateButton, 0.9, Motion.Medium);
         }
         catch (Exception ex)
         {
@@ -863,13 +896,6 @@ public partial class MainWindow : Window
         {
             _downloading = false;
         }
-    }
-
-    private void SetUpdateProgress(double fraction)
-    {
-        var pct = Math.Clamp(fraction, 0, 1) * 100;
-        UpdateDone.Width = new GridLength(pct, GridUnitType.Star);
-        UpdateLeft.Width = new GridLength(100 - pct, GridUnitType.Star);
     }
 
     private void RestartIntoNewBuild()
@@ -977,7 +1003,7 @@ public partial class MainWindow : Window
             // so open sessions can just keep going. When we can name them, do — knowing exactly
             // which windows are about to change hands is more use than a generic reassurance.
             var note = LiveSessionNote() ?? Loc.T("switch.keepGoing");
-            ShowStatus(Loc.T("switch.done", profile.DisplayName) + " " + note);
+            ShowToast(Loc.T("switch.done", Redactor.Mask(profile.DisplayName)) + " " + note, ToastKind.Success);
 
             if (!silent && App.Settings.SwitchNotifications)
                 App.Tray?.Notify(Loc.T("switch.title"), $"{profile.DisplayName}\n{note}");
@@ -988,10 +1014,10 @@ public partial class MainWindow : Window
             // token here was the old false alarm that told users to re-add perfectly good accounts.
             if (!AccountSwitcher.CredentialsUsable(secret.CredentialsJson))
             {
-                ShowStatus($"⚠ {profile.DisplayName}: the saved sign-in has expired. " +
-                           "Use \"+ Add Account\" to sign into it once more.");
+                ShowToast($"{profile.DisplayName}: the saved sign-in has expired. " +
+                          "Use \"Sign in\" on its card to renew it.", ToastKind.Warning);
                 App.Tray?.Notify("Re-sign-in needed",
-                    $"{profile.DisplayName}'s saved sign-in expired. Add the account again.");
+                    $"{profile.DisplayName}'s saved sign-in expired. Sign in to it again.");
             }
         }
         catch (Exception ex)
@@ -1022,9 +1048,13 @@ public partial class MainWindow : Window
         return Loc.T("switch.liveSessions", named);
     }
 
+    /// <summary>The card's one button: switch to the account, or sign back into it if its sign-in died.</summary>
     private void UseButton_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as Button)?.Tag is AccountItem item) SwitchTo(item.Profile);
+        if ((sender as Button)?.Tag is not AccountItem item) return;
+
+        if (item.NeedsReauth) OpenAddAccount(item.Profile.Email);
+        else SwitchTo(item.Profile);
     }
 
     // ── saving / adding ─────────────────────────────────────────────────────
@@ -1042,23 +1072,14 @@ public partial class MainWindow : Window
             var captured = _switcher.CaptureCurrent();
             if (captured is null)
             {
-                if (announce) ShowStatus("No signed-in session to save. Sign into Claude Code first.");
+                if (announce) ShowToast("No signed-in session to save. Sign into Claude Code first.", ToastKind.Warning);
                 return null;
             }
 
             var (profile, secret) = captured.Value;
 
-            var existing = _store.LoadAll().FirstOrDefault(p =>
-                !string.IsNullOrEmpty(p.AccountUuid) &&
-                string.Equals(p.AccountUuid, profile.AccountUuid, StringComparison.OrdinalIgnoreCase));
-
-            if (existing is not null)
-            {
-                // Keep the user's custom label and creation date; take everything else fresh.
-                profile.Id = existing.Id;
-                profile.Label = existing.Label;
-                profile.CreatedAt = existing.CreatedAt;
-            }
+            var existing = FindSaved(profile);
+            if (existing is not null) KeepUserFields(profile, existing);
 
             profile.LastUsedAt = DateTimeOffset.UtcNow;
             _store.Save(profile, secret);
@@ -1067,9 +1088,9 @@ public partial class MainWindow : Window
 
             if (announce)
             {
-                ShowStatus(existing is not null
-                    ? $"{profile.DisplayName} updated."
-                    : $"{profile.DisplayName} saved.");
+                ShowToast(existing is not null
+                    ? $"{Redactor.Mask(profile.DisplayName)} updated."
+                    : $"{Redactor.Mask(profile.DisplayName)} saved.", ToastKind.Success);
             }
 
             return profile;
@@ -1081,237 +1102,99 @@ public partial class MainWindow : Window
         }
     }
 
+    private void AddAccountButton_Click(object sender, RoutedEventArgs e) => OpenAddAccount();
+
+    /// <summary>True while the add-account sheet is up.</summary>
+    private bool SheetOpen => _sheet?.IsOpen == true;
+
     /// <summary>
-    /// Adds an account with no intermediate screens: the login runs in an isolated config
-    /// directory, its URL is re-opened in a private window, and the stray tab Claude Code
-    /// opens in the ordinary browser is closed before it can be clicked.
+    /// Opens the add-account sheet. <paramref name="email"/> turns it into "sign in again" for an
+    /// account whose saved sign-in died, and hints that address to the sign-in page.
     /// </summary>
-    private async void AddAccountButton_Click(object sender, RoutedEventArgs e)
+    internal void OpenAddAccount(string? email = null)
     {
-        if (_login is not null) { CancelLogin(); return; }
+        HidePalette();
+        HideSettings();
 
-        if (!ClaudeCli.IsInstalled)
-        {
-            MessageBox.Show(this,
-                "Claude Code CLI not found.\n\nTo install it:\nnpm install -g @anthropic-ai/claude-code",
-                "ClaudeSwitch", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        // Snapshot the live account first so it stays switchable even if the user never
-        // saved it by hand. Nothing about it is modified by the login below.
+        // Snapshot the live account first so it stays switchable even if the user never saved
+        // it by hand. Nothing about it is modified by the login.
         SaveCurrentAccount(announce: false);
 
-        _loginCancel = new CancellationTokenSource();
-        var token = _loginCancel.Token;
-
-        AddAccountButton.Content = Loc.T("footer.cancel");
-        ShowStatus("Preparing login… A browser window will come to the front.");
-
-        try
+        if (_sheet is null)
         {
-            // Titles of every browser window as they are right now. Anything that changes
-            // into a login page after this point is Claude Code's doing, not the user's.
-            var windowsBefore = BrowserTabs.Snapshot();
-
-            _loginConfigDir = ClaudePaths.CreateScratchConfigDir();
-            _login = LoginSession.Start(_loginConfigDir);
-
-            var url = await _login.WaitForUrlAsync(TimeSpan.FromSeconds(30), token);
-            if (url is null)
-            {
-                ShowStatus("Couldn't get the login URL: " + Truncate(_login.Output, 200));
-                CancelLogin();
-                return;
-            }
-
-            var session = PrivateBrowser.Open(url);
-            if (session is null)
-            {
-                PrivateBrowser.OpenDefault(url);
-                ShowStatus("No recognized browser found; opened in your default browser instead.");
-            }
-            else
-            {
-                _browserProfileDir = session.Value.ProfileDir;
-                ShowStatus($"Sign in using the {session.Value.Browser.Name} window…");
-
-                // Maximise and raise the login window once it appears. Located via the
-                // before-snapshot, not the launched process, which may already have exited.
-                _ = PrivateBrowser.FocusOnceAsync(windowsBefore, token);
-            }
-
-            // Also get rid of the tab Claude Code opened in the ordinary browser, which shows
-            // the old account.
-            _ = BrowserTabs.CloseStrayLoginTabAsync(windowsBefore, TimeSpan.FromSeconds(12), token);
-
-            await WaitForLoginAsync(token);
+            _sheet = new AddAccountSheet { Save = SaveAddedAccount };
+            _sheet.Closed += OnSheetClosed;
+            SheetLayer.Children.Add(_sheet);
         }
-        catch (OperationCanceledException)
-        {
-            ShowStatus("Hesap ekleme iptal edildi.");
-        }
-        catch (Exception ex)
-        {
-            CrashLog.Write("AddAccount", ex);
-            ShowStatus("Hesap eklenemedi: " + ex.Message);
-        }
-        finally
-        {
-            CleanUpLogin();
-        }
+
+        _sheet.Open(email);
     }
 
-    /// <summary>
-    /// Waits for credentials to appear in the scratch directory. That file is the real
-    /// completion signal — more reliable than reading the CLI's console text.
-    /// </summary>
-    /// <summary>
-    /// The browser callback usually completes the login on its own within a few seconds. The
-    /// CLI prints "Paste code here if prompted" every time regardless, so that text is NOT a
-    /// signal that a paste is actually needed — treating it as one made the code box pop up and
-    /// yank the window forward on every login. The paste box is therefore held back until the
-    /// login has clearly stalled.
-    /// </summary>
-    private static readonly TimeSpan ShowCodeBoxAfter = TimeSpan.FromSeconds(25);
+    /// <summary>The account the sheet just saved, lit up once the sheet is out of the way.</summary>
+    private string? _highlightAfterSheet;
 
-    private async Task WaitForLoginAsync(CancellationToken token)
+    private void OnSheetClosed()
     {
-        var started = DateTime.UtcNow;
-        var deadline = started + TimeSpan.FromMinutes(5);
-        var showedCodeBox = false;
+        AddAccountButton.Focus();
 
-        while (DateTime.UtcNow < deadline)
+        if (_highlightAfterSheet is { } id)
         {
-            token.ThrowIfCancellationRequested();
-            await Task.Delay(1000, token);
-
-            if (_login is null || _loginConfigDir is null) return;
-
-            if (_switcher.CaptureFromConfigDir(_loginConfigDir) is { } captured)
-            {
-                // Don't trust the files alone — prove the token works before saving it. A
-                // credential set that looks complete but is rejected means the login is still
-                // settling, and storing it would produce a profile that silently fails later.
-                var accessToken = UsageApi.ExtractAccessToken(captured.Secret.CredentialsJson);
-                if (accessToken is not null)
-                {
-                    var (_, status) = await UsageApi.FetchWithStatusAsync(accessToken, token);
-                    if (status == UsageApi.FetchStatus.Unauthorized)
-                    {
-                        ShowStatus("Finishing sign-in…");
-                        continue;   // keep polling; the CLI hasn't finished yet
-                    }
-                }
-
-                SaveAddedAccount(captured.Profile, captured.Secret);
-                return;
-            }
-
-            // Only surface the paste box once the login has clearly not auto-completed.
-            if (!showedCodeBox && _login.IsAwaitingCode &&
-                DateTime.UtcNow - started > ShowCodeBoxAfter)
-            {
-                showedCodeBox = true;
-                CodePanel.Visibility = Visibility.Visible;
-                ShowStatus("Login didn't complete automatically. If the browser gave you a code, " +
-                           "paste it below.");
-
-                // Now it is right to raise the app: the user must come back here to paste.
-                if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
-                Show();
-                Activate();
-                CodeBox.Focus();
-            }
-
-            if (_login.HasExited && !_login.ReportedSuccess)
-            {
-                ShowStatus("Login didn't complete: " + Truncate(_login.Output, 200));
-                return;
-            }
+            _highlightAfterSheet = null;
+            _listAnimator.Highlight(id);
         }
-
-        ShowStatus("Login timed out.");
     }
 
-    private void SubmitCodeButton_Click(object sender, RoutedEventArgs e) => SubmitCode();
-
-    private void CodeBox_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == System.Windows.Input.Key.Enter) SubmitCode();
-    }
-
-    private void SubmitCode()
-    {
-        var code = CodeBox.Text.Trim();
-        if (code.Length == 0 || _login is null) return;
-
-        _login.SubmitCode(code);
-        CodeBox.Clear();
-        CodePanel.Visibility = Visibility.Collapsed;
-        ShowStatus("Code submitted, verifying…");
-    }
-
-    private void SaveAddedAccount(Profile profile, ProfileSecret secret)
+    /// <summary>Stores what the sheet captured and tells it what that amounted to.</summary>
+    private (AddAccountSheet.Outcome Outcome, string Name) SaveAddedAccount(Profile profile, ProfileSecret secret)
     {
         // Re-adding a known account refreshes its tokens rather than duplicating the row.
-        var existing = _store.LoadAll().FirstOrDefault(p =>
-            !string.IsNullOrEmpty(p.AccountUuid) &&
-            string.Equals(p.AccountUuid, profile.AccountUuid, StringComparison.OrdinalIgnoreCase));
+        var existing = FindSaved(profile);
 
-        var wasAlreadyActive = existing is not null && string.Equals(
-            existing.AccountUuid, CurrentAccountUuid(), StringComparison.OrdinalIgnoreCase);
+        var isActiveAccount = !string.IsNullOrEmpty(profile.AccountUuid) && string.Equals(
+            profile.AccountUuid, CurrentAccountUuid(), StringComparison.OrdinalIgnoreCase);
 
-        if (existing is not null)
-        {
-            profile.Id = existing.Id;
-            profile.Label = existing.Label;
-            profile.CreatedAt = existing.CreatedAt;
-        }
+        if (existing is not null) KeepUserFields(profile, existing);
 
         _store.Save(profile, secret);
         Refresh();
+        _highlightAfterSheet = profile.Id;
 
-        if (wasAlreadyActive)
+        if (existing is null)
         {
-            ShowStatus($"{profile.DisplayName} was already saved — its tokens were refreshed. " +
-                       "For a different account, sign in as that account in the private window.");
+            App.Tray?.Notify(Loc.T("add.addedTitle"), profile.DisplayName);
+            return (AddAccountSheet.Outcome.Added, profile.DisplayName);
         }
-        else
-        {
-            ShowStatus($"{profile.DisplayName} added. Click \"Switch\" to use it.");
-            App.Tray?.Notify("Account added", profile.DisplayName);
-        }
+
+        return (isActiveAccount ? AddAccountSheet.Outcome.AlreadyActive : AddAccountSheet.Outcome.Renewed,
+                profile.DisplayName);
     }
 
-    private void CancelLogin() => _loginCancel?.Cancel();
+    private Profile? FindSaved(Profile fresh) => _store.LoadAll().FirstOrDefault(p =>
+        !string.IsNullOrEmpty(p.AccountUuid) &&
+        string.Equals(p.AccountUuid, fresh.AccountUuid, StringComparison.OrdinalIgnoreCase));
 
-    private void CleanUpLogin()
+    /// <summary>
+    /// A freshly captured profile knows only what the credentials say. Everything the user chose
+    /// — name, colour, auto-switch exclusion — and the usage history belongs to the saved one and
+    /// must survive a re-save; losing them on every "sign in again" would punish the user for
+    /// fixing an expired account.
+    /// </summary>
+    private static void KeepUserFields(Profile fresh, Profile saved)
     {
-        _loginCancel?.Dispose();
-        _loginCancel = null;
+        fresh.Id = saved.Id;
+        fresh.Label = saved.Label;
+        fresh.CreatedAt = saved.CreatedAt;
+        fresh.LastUsedAt = saved.LastUsedAt;
+        fresh.Color = saved.Color;
+        fresh.ExcludeFromAuto = saved.ExcludeFromAuto;
 
-        _login?.Dispose();
-        _login = null;
-
-        // The scratch directory holds a complete credential set — never leave it in %TEMP%.
-        if (_loginConfigDir is not null)
-        {
-            try { Directory.Delete(_loginConfigDir, recursive: true); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-            _loginConfigDir = null;
-        }
-
-        // Best effort: the browser usually still has the profile open at this point, so it is
-        // also swept on the next startup.
-        PrivateBrowser.CleanUpProfile(_browserProfileDir);
-        _browserProfileDir = null;
-
-        CodePanel.Visibility = Visibility.Collapsed;
-        AddAccountButton.Content = Loc.T("footer.addAccount");
+        fresh.UsageFiveHourPercent = saved.UsageFiveHourPercent;
+        fresh.UsageFiveHourResetsAt = saved.UsageFiveHourResetsAt;
+        fresh.UsageSevenDayPercent = saved.UsageSevenDayPercent;
+        fresh.UsageSevenDayResetsAt = saved.UsageSevenDayResetsAt;
+        fresh.UsageFetchedAt = saved.UsageFetchedAt;
+        fresh.UsageHistory = saved.UsageHistory;
     }
-
-    private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "…";
 
     // ── row menu ────────────────────────────────────────────────────────────
 
@@ -1356,6 +1239,7 @@ public partial class MainWindow : Window
         menu.Items.Add(new Separator());
 
         var delete = new MenuItem { Header = Loc.T("menu.delete") };
+        delete.SetResourceReference(ForegroundProperty, "Danger");
         delete.Click += (_, _) => DeleteProfile(item);
         menu.Items.Add(delete);
     }
@@ -1379,9 +1263,21 @@ public partial class MainWindow : Window
 
         foreach (var accent in ThemeManager.Accents)
         {
+            // A swatch beside each name: picking a colour by its name alone is guesswork.
+            var header = new StackPanel { Orientation = Orientation.Horizontal };
+            header.Children.Add(new System.Windows.Shapes.Ellipse
+            {
+                Width = 10,
+                Height = 10,
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Fill = new SolidColorBrush(ThemeManager.Parse(accent.Base)),
+            });
+            header.Children.Add(new TextBlock { Text = accent.Name, VerticalAlignment = VerticalAlignment.Center });
+
             var entry = new MenuItem
             {
-                Header = accent.Name,
+                Header = header,
                 IsCheckable = true,
                 IsChecked = item.Profile.Color == accent.Key,
             };
@@ -1424,24 +1320,86 @@ public partial class MainWindow : Window
 
         if (confirm != MessageBoxResult.OK) return;
 
-        _store.Delete(item.Profile.Id);
-        Refresh();
-        ShowStatus($"{item.Profile.DisplayName} deleted.");
+        // The card leaves first; the rest of the list then closes the gap (see ListAnimator).
+        _listAnimator.Remove(item, () =>
+        {
+            _store.Delete(item.Profile.Id);
+            Refresh();
+            ShowToast($"{Redactor.Mask(item.Profile.DisplayName)} deleted.");
+        });
     }
 
+    // ── toast ───────────────────────────────────────────────────────────────
 
-    // ── status ──────────────────────────────────────────────────────────────
+    private enum ToastKind { Info, Success, Warning, Error }
 
-    private void ShowStatus(string message)
+    private DispatcherTimer? _toastTimer;
+
+    /// <summary>
+    /// Shows a short message that rises in above the footer and leaves by itself — replacing the
+    /// old status line, which sat in the footer until the next message and pushed it around.
+    /// </summary>
+    private void ShowToast(string message, ToastKind kind = ToastKind.Info)
     {
-        StatusText.Text = message;
-        StatusText.Visibility = Visibility.Visible;
+        ToastText.Text = message;
+
+        // The toast is always dark, so its icons use colours bright enough for a dark ground
+        // rather than the theme's (which, in light mode, are tuned for white).
+        var (glyph, color) = kind switch
+        {
+            ToastKind.Success => ("", "#6CC49A"),
+            ToastKind.Warning => ("", "#E9BC6E"),
+            ToastKind.Error => ("", "#F28C82"),
+            _ => ("", "#F2A585"),
+        };
+        ToastIcon.Text = glyph;
+        ToastIcon.Foreground = new SolidColorBrush(ThemeManager.Parse(color));
+
+        var (_, shift) = Motion.Transforms(Toast);
+        if (Toast.Visibility == Visibility.Visible && Toast.Opacity > 0.5)
+        {
+            // Already up: a fresh message nudges it rather than replaying the entrance.
+            Motion.Pop(Toast, 0.96, Motion.Medium);
+        }
+        else
+        {
+            Toast.Visibility = Visibility.Visible;
+            Motion.To(Toast, OpacityProperty, 1, Motion.Short, Motion.Enter, from: 0);
+            Motion.To(shift, TranslateTransform.YProperty, 0, Motion.Long, Motion.Enter, from: 18);
+        }
+
+        // Long enough to read: a base plus a little per character, capped.
+        _toastTimer?.Stop();
+        _toastTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(Math.Clamp(2200 + message.Length * 45, 2600, 9000)),
+        };
+        _toastTimer.Tick += (_, _) =>
+        {
+            if (Toast.IsMouseOver) return;   // someone is reading it; look again next tick
+            HideToast();
+        };
+        _toastTimer.Start();
     }
+
+    private void HideToast()
+    {
+        _toastTimer?.Stop();
+
+        var (_, shift) = Motion.Transforms(Toast);
+        Motion.To(shift, TranslateTransform.YProperty, 10, Motion.Short, Motion.Exit);
+        Motion.To(Toast, OpacityProperty, 0, Motion.Short, Motion.Exit,
+                  done: () => Toast.Visibility = Visibility.Collapsed);
+    }
+
+    private void Toast_Click(object sender, MouseButtonEventArgs e) => HideToast();
 
     private void ShowError(string title, Exception ex)
     {
-        ShowStatus($"{title}: {ex.Message}");
-        MessageBox.Show(this, ex.Message, title, MessageBoxButton.OK, MessageBoxImage.Error);
+        ShowToast($"{title}: {ex.Message}", ToastKind.Error);
+
+        // A toast in a hidden window reaches nobody; the tray balloon does.
+        if (!IsVisible) App.Tray?.Notify(title, ex.Message);
     }
 }
 
@@ -1463,12 +1421,15 @@ internal sealed class AccountItem : INotifyPropertyChanged
     public string Initial => Profile.Initial;
     public string PlanBadge => Profile.PlanBadge;
 
+    /// <summary>No plan known means no badge, rather than a lonely dash.</summary>
+    public Visibility PlanVisibility => PlanBadge == "—" ? Visibility.Collapsed : Visibility.Visible;
+
     /// <summary>Right-aligned hint in the command palette: active state or plan.</summary>
     public string PaletteHint => IsActive ? Loc.T("card.active") : PlanBadge == "—" ? "" : PlanBadge;
 
     private bool _needsReauth;
 
-    /// <summary>Stored credentials are unusable — the account has to be added again.</summary>
+    /// <summary>Stored credentials are unusable — the account has to be signed into again.</summary>
     public bool NeedsReauth
     {
         get => _needsReauth;
@@ -1478,14 +1439,15 @@ internal sealed class AccountItem : INotifyPropertyChanged
             _needsReauth = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(Subtitle));
+            OnPropertyChanged(nameof(ActionLabel));
+            OnPropertyChanged(nameof(ActionKind));
         }
     }
 
     /// <summary>Compact mode collapses the usage panel for a denser list.</summary>
     public bool Compact { get; init; }
 
-    public System.Windows.Visibility UsageVisibility =>
-        Compact ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+    public Visibility UsageVisibility => Compact ? Visibility.Collapsed : Visibility.Visible;
 
     public string Subtitle
     {
@@ -1518,17 +1480,25 @@ internal sealed class AccountItem : INotifyPropertyChanged
             _isActive = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ActionLabel));
+            OnPropertyChanged(nameof(ActionKind));
             OnPropertyChanged(nameof(AvatarBrush));
             OnPropertyChanged(nameof(AvatarTextBrush));
         }
     }
 
     /// <summary>
-    /// The row button's label. A property rather than a template trigger because a trigger's
-    /// Setter.Value cannot carry the live translation binding {loc:Tr} now produces — and one
-    /// binding is less machinery than a trigger anyway.
+    /// What the card's action area shows: "active" (a chip, no button), "reauth" (the button signs
+    /// back in), or "switch". A dead sign-in outranks being active — that account can't be used
+    /// until it's fixed, active or not.
     /// </summary>
-    public string ActionLabel => Loc.T(IsActive ? "card.active" : "card.switch");
+    public string ActionKind => NeedsReauth ? "reauth" : IsActive ? "active" : "switch";
+
+    /// <summary>
+    /// The row button's label. A property rather than a template trigger because a trigger's
+    /// Setter.Value cannot carry the live translation binding {loc:Tr} produces — and one binding
+    /// is less machinery than a trigger anyway.
+    /// </summary>
+    public string ActionLabel => Loc.T(NeedsReauth ? "card.signIn" : IsActive ? "card.active" : "card.switch");
 
     // ── avatar ───────────────────────────────────────────────────────────────
 
@@ -1538,33 +1508,33 @@ internal sealed class AccountItem : INotifyPropertyChanged
     /// distinct. A pinned colour outranks the active tint so the colour you chose is always the
     /// thing you recognise the row by.
     /// </summary>
-    public System.Windows.Media.Brush AvatarBrush
+    public Brush AvatarBrush
     {
         get
         {
             if (ThemeManager.Accents.FirstOrDefault(a => a.Key == Profile.Color) is { Key: not null } accent)
-                return new System.Windows.Media.SolidColorBrush(ThemeManager.Parse(accent.Base));
+                return new SolidColorBrush(ThemeManager.Parse(accent.Base));
 
             if (IsActive)
                 return Resource("Accent");
 
             var seed = string.IsNullOrWhiteSpace(Profile.Email) ? DisplayName : Profile.Email;
-            return new System.Windows.Media.SolidColorBrush(Identicon.ColorFor(seed));
+            return new SolidColorBrush(Identicon.ColorFor(seed));
         }
     }
 
     // Every avatar now carries a colour (pinned, accent, or identicon), so the initial is always
     // white on it.
-    public System.Windows.Media.Brush AvatarTextBrush => System.Windows.Media.Brushes.White;
+    public Brush AvatarTextBrush => Brushes.White;
 
     /// <summary>The usage ring only means something when there's a usage figure and it's turned on.</summary>
     public bool ShowUsageRing => App.Settings.UsageRings && HasUsage;
 
-    public System.Windows.Visibility ExcludedVisibility =>
-        Profile.ExcludeFromAuto ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    public Visibility ExcludedVisibility =>
+        Profile.ExcludeFromAuto ? Visibility.Visible : Visibility.Collapsed;
 
-    private static System.Windows.Media.Brush Resource(string key)
-        => (System.Windows.Media.Brush)System.Windows.Application.Current.Resources[key];
+    private static Brush Resource(string key)
+        => (Brush)Application.Current.Resources[key];
 
     // ── real usage (from /api/oauth/usage) ───────────────────────────────────
 
@@ -1585,11 +1555,9 @@ internal sealed class AccountItem : INotifyPropertyChanged
     public bool HasUsage => Profile.UsageFetchedAt is not null;
 
     /// <summary>"…" placeholder before the first fetch; the live number takes over once it arrives.</summary>
-    public System.Windows.Visibility PendingVisibility =>
-        HasUsage ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+    public Visibility PendingVisibility => HasUsage ? Visibility.Collapsed : Visibility.Visible;
 
-    public System.Windows.Visibility ValueVisibility =>
-        HasUsage ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    public Visibility ValueVisibility => HasUsage ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>5-hour utilization as a number; treated as full when unknown, for "most free" ranking.</summary>
     public double FiveHourValue => Profile.UsageFiveHourPercent ?? 100;
@@ -1601,14 +1569,14 @@ internal sealed class AccountItem : INotifyPropertyChanged
 
     private const double SparkW = 74, SparkH = 16;
 
-    public System.Windows.Visibility SparkVisibility =>
-        Profile.UsageHistory.Count >= 2 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    public Visibility SparkVisibility =>
+        Profile.UsageHistory.Count >= 2 ? Visibility.Visible : Visibility.Collapsed;
 
-    public System.Windows.Media.PointCollection SparkPoints
+    public PointCollection SparkPoints
     {
         get
         {
-            var points = new System.Windows.Media.PointCollection();
+            var points = new PointCollection();
             var h = Profile.UsageHistory;
             if (h.Count < 2) return points;
 
@@ -1633,23 +1601,22 @@ internal sealed class AccountItem : INotifyPropertyChanged
         set { if (_isMostFree == value) return; _isMostFree = value; OnPropertyChanged(); OnPropertyChanged(nameof(MostFreeVisibility)); }
     }
 
-    public System.Windows.Visibility MostFreeVisibility =>
-        _isMostFree ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    public Visibility MostFreeVisibility => _isMostFree ? Visibility.Visible : Visibility.Collapsed;
 
-    public System.Windows.Media.Brush FiveHourBrush => BarBrush(Profile.UsageFiveHourPercent);
-    public System.Windows.Media.Brush SevenDayBrush => BarBrush(Profile.UsageSevenDayPercent);
+    public Brush FiveHourBrush => BarBrush(Profile.UsageFiveHourPercent);
+    public Brush SevenDayBrush => BarBrush(Profile.UsageSevenDayPercent);
 
     /// <summary>Green under 70%, amber to 90%, red above — the usual "getting close" cue.</summary>
-    private static System.Windows.Media.Brush BarBrush(double? percent)
+    private static Brush BarBrush(double? percent)
     {
         var p = percent ?? 0;
         var color = p switch
         {
-            >= 90 => System.Windows.Media.Color.FromRgb(0xB4, 0x44, 0x3A),
-            >= 70 => System.Windows.Media.Color.FromRgb(0xC9, 0x64, 0x42),
-            _ => System.Windows.Media.Color.FromRgb(0x2F, 0x7A, 0x5B),
+            >= 90 => Color.FromRgb(0xB4, 0x44, 0x3A),
+            >= 70 => Color.FromRgb(0xC9, 0x64, 0x42),
+            _ => Color.FromRgb(0x2F, 0x7A, 0x5B),
         };
-        return new System.Windows.Media.SolidColorBrush(color);
+        return new SolidColorBrush(color);
     }
 
     public string FiveHourReset => ResetText(Profile.UsageFiveHourResetsAt);

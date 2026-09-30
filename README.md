@@ -71,8 +71,9 @@ single click updates your terminal **and** your editor at once.
 - **One-click switching** from a system-tray menu or the main window.
 - **Real usage %** — genuine 5-hour and 7-day utilization with reset times, from the *same source*
   Claude Code's own `/usage` command uses. No guessed limits, no fabricated numbers.
-- **Add accounts without signing out.** New logins run in an isolated, throwaway browser profile,
-  so your current account is never touched and the login page actually asks *which* account to use.
+- **Add accounts without signing out.** New logins run against an isolated config directory, so your
+  current account is never touched. The sign-in page opens in your own browser — one tab — or as a
+  link to paste wherever the other account lives (see [below](#adding-an-account-without-signing-out)).
 - **Encrypted at rest.** Tokens are sealed with Windows DPAPI (current-user scope) — unreadable by
   other users on the machine, and non-portable to other machines.
 - **Auto-switch at your limit.** When the active account hits its 5-hour limit, ClaudeSwitch can
@@ -92,12 +93,15 @@ single click updates your terminal **and** your editor at once.
 - **Updates itself.** When a newer release is out, a banner offers it: one click downloads the
   build in the background with a progress bar, then restarts into it. No browser, no re-download,
   nothing to delete (see [below](#how-updating-works)).
-- **Light, dark, or follow Windows**, with a smooth crossfade when it changes — plus a **compact
-  mode** that hides the usage panels for a denser list, per-account colours, a sort order that
-  suits you, and a window that reopens where you left it.
+- **Light, dark, or follow Windows** — a new theme spreads out from wherever you clicked — plus a
+  **compact mode** that hides the usage panels for a denser list, per-account colours, a sort order
+  that suits you, and a window that reopens where you left it.
 - **Crafted to glance at.** Each avatar is ringed by its live 5-hour usage, accounts you never
   coloured get a stable colour from their email, usage numbers count up when they change, and on
   Windows 11 the window sits on the translucent Mica material with rounded corners.
+- **Motion with a purpose.** Cards glide to their new places when the order changes, the account
+  you switch to pops, settings slide in like a page, and every button answers the pointer — all
+  of it off when Windows' own "Show animations" is off.
 - **Command palette** — `Ctrl+K`, type a name, Enter, switched.
 - **Mini mode** — collapse to a small always-on-top pill showing just the active account's usage
   ring, out of the way but always visible.
@@ -141,9 +145,9 @@ Requires the .NET 8 SDK. Output lands in `publish\ClaudeSwitch.exe`.
 ## Usage
 
 1. **Save current account** — snapshots whoever is signed in right now into a profile.
-2. **+ Add Account** — opens a private, session-free browser window straight on the login page, so
-   you can sign in with a *different* account. ClaudeSwitch captures it automatically. *(Once per
-   account; after that it's one click forever.)*
+2. **Add account** — choose **Open in browser** or **Copy sign-in link**, sign in as the account you
+   want, and ClaudeSwitch captures it automatically. *(Once per account; after that it's one click
+   forever.)*
 3. Right-click the tray icon and pick an account — or use the **Switch** button in the window.
 
 > **You usually don't need to restart anything.** Switch accounts, go back to your open session, and
@@ -237,17 +241,30 @@ anywhere else.
 
 ## Adding an account without signing out
 
-`~/.claude.json` only controls the *local* credential files, not your **browser's** claude.ai session
-— and the OAuth consent page has no "switch account" link, so a normal window just re-authorizes
-whoever the browser is already signed in as.
+**+ Add account** runs Claude Code's own `claude auth login` against a throwaway config directory, so
+the account you're using is never signed out or touched. Then it asks how you'd like the sign-in page:
 
-So ClaudeSwitch captures the login URL Claude Code prints and opens it in a **fresh, throwaway browser
-profile** (not just incognito — a separate instance that can't reuse the running browser's window or
-cookies). With no cookies, claude.ai has to ask which account to use. The window opens maximized and
-focused; the throwaway profile is deleted afterward. Your active account's files are never touched.
+| Choice | What happens |
+|---|---|
+| **Open in browser** | The page opens in your default browser — one tab, nothing else. |
+| **Copy sign-in link** | The link goes to your clipboard; paste it into whichever browser, profile or private window has the account you want. |
 
-Supported browsers (default browser is preferred, then a scan): Chrome, Brave, Edge, Firefox, Zen,
-Vivaldi, Opera / Opera GX, LibreWolf, Floorp, Waterfox, Chromium.
+Either way the login finishes by itself: the link redirects back to the listener Claude Code runs on
+`localhost`, so there's no code to copy back. Tick **Remember my choice** (or set it under
+**Settings → Accounts**) to skip the question next time.
+
+One thing to know: the sign-in page authorizes whichever claude.ai account **that browser** is signed
+into — the consent page has no "switch account" link. To add a *different* account, sign out of
+claude.ai in that browser first, or copy the link into a browser (or private window) where the other
+account is signed in. If you do sign in as the account you're already using, ClaudeSwitch says so.
+
+> How the single tab works: Claude Code opens its sign-in page by running whatever the `BROWSER`
+> environment variable names. For the login it starts, ClaudeSwitch points `BROWSER` at itself, so the
+> self-completing URL is handed to the app instead of a browser tab you never asked for. (On a Claude
+> Code old enough to ignore `BROWSER`, it falls back to the printed link and a box to paste the code.)
+
+An account whose saved sign-in has expired shows **Sign in** on its card; that runs the same flow, with
+the account's email passed to the sign-in page as a hint.
 
 > Your password is only ever entered on Anthropic's own login page — ClaudeSwitch never sees or
 > stores it, and never asks for it.

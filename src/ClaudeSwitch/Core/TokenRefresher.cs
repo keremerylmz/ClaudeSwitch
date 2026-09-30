@@ -39,6 +39,9 @@ internal static class TokenRefresher
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
+    /// <summary>30 days, in ms — Claude Code's own default when a login response omits the figure.</summary>
+    private const long AssumedRefreshLifetime = 30L * 24 * 60 * 60 * 1000;
+
     internal enum Result { Refreshed, RefreshTokenDead, Unavailable }
 
     /// <summary>
@@ -121,10 +124,15 @@ internal static class TokenRefresher
             if (root.TryGetProperty("expires_in", out var ei) && ei.TryGetInt64(out var secs))
                 updated = SetNumber(updated, "expiresAt", now + secs * 1000);
 
-            // Only overwrite the refresh-token expiry when the server actually returned one;
-            // otherwise keep the stored value (matches Claude Code's own behaviour).
+            // The refresh-token expiry: the server's figure when it sends one. When it doesn't but
+            // the token rotated, the stored figure described the token that was just retired —
+            // keeping it would have this account flagged "sign-in expired" a month after it was
+            // first added, however healthy. Give the new token the same month Claude Code itself
+            // assumes when it signs in without being told.
             if (root.TryGetProperty("refresh_token_expires_in", out var rei) && rei.TryGetInt64(out var rsecs))
                 updated = SetNumber(updated, "refreshTokenExpiresAt", now + rsecs * 1000);
+            else if (refresh != oldRefreshToken)
+                updated = SetNumber(updated, "refreshTokenExpiresAt", now + AssumedRefreshLifetime);
 
             return updated;
         }

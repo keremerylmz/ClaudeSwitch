@@ -23,6 +23,16 @@
     <SolidColorBrush x:Key="Warning"        Color="#D2A45E"/>
     <SolidColorBrush x:Key="Danger"         Color="#DB6A60"/>
 
+    <SolidColorBrush x:Key="SuccessSoft"    Color="#1E2D26"/>
+    <SolidColorBrush x:Key="WarningSoft"    Color="#33291B"/>
+    <SolidColorBrush x:Key="DangerSoft"     Color="#382320"/>
+
+    <SolidColorBrush x:Key="Raised"         Color="#292724"/>
+    <SolidColorBrush x:Key="Overlay"        Color="#99000000"/>
+    <Color x:Key="ShadowColor">#000000</Color>
+
+    <Color x:Key="ShineColor">#38F0A080</Color>
+
     <SolidColorBrush x:Key="ScrollThumb"      Color="#403C37"/>
     <SolidColorBrush x:Key="ScrollThumbHover" Color="#57524B"/>
 

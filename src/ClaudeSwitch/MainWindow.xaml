@@ -16,401 +16,545 @@
         TextOptions.TextRenderingMode="ClearType">
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <!-- ═══════════════════════ Main content ═══════════════════════
+             Wrapped so it can drift aside as the settings slide over it. -->
+        <Grid x:Name="MainContent">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <!-- ══════════════════════════ Header ══════════════════════════ -->
-        <Border Grid.Row="0" Background="{DynamicResource Surface}"
-                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
-                Padding="20,17,14,15">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <!-- ══════════════════════════ Header ══════════════════════════ -->
+            <Border Grid.Row="0" Background="{DynamicResource Surface}"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
+                    Padding="18,15,12,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="ClaudeSwitch"
-                               FontSize="{StaticResource FontTitle}" FontWeight="SemiBold"
-                               Foreground="{DynamicResource Text}"/>
-                    <TextBlock x:Name="ActiveAccountText" Margin="0,3,0,0"
-                               FontSize="{StaticResource FontSmall}"
-                               Foreground="{DynamicResource TextMuted}"
-                               TextTrimming="CharacterEllipsis"
-                               Text="{loc:Tr app.loading}"/>
-                </StackPanel>
+                    <!-- Brand tile: the same switch-arrows mark the tray icon wears. -->
+                    <Border x:Name="BrandTile" Width="36" Height="36" CornerRadius="11"
+                            Background="{DynamicResource Accent}" VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE8AB;" FontSize="16"
+                                   Foreground="White"/>
+                    </Border>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="MiniButton" Style="{StaticResource IconButton}"
-                            Content="&#x2921;" FontSize="15" ToolTip="{loc:Tr tip.mini}"
-                            Click="MiniButton_Click"/>
-                    <Button x:Name="SettingsButton" Style="{StaticResource IconButton}"
-                            Content="⚙" FontSize="16" ToolTip="{loc:Tr tip.settings}"
-                            Click="SettingsButton_Click"/>
-                </StackPanel>
-            </Grid>
-        </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+                        <TextBlock Text="ClaudeSwitch"
+                                   FontSize="{StaticResource FontTitle}" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource Text}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                            <Ellipse x:Name="ActiveDot" Width="6" Height="6" Margin="0,1,6,0"
+                                     Fill="{DynamicResource Success}" VerticalAlignment="Center"
+                                     Visibility="Collapsed"/>
+                            <TextBlock x:Name="ActiveAccountText"
+                                       FontSize="{StaticResource FontSmall}"
+                                       Foreground="{DynamicResource TextMuted}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{loc:Tr app.loading}"/>
+                        </StackPanel>
+                    </StackPanel>
 
-        <!-- ═══════════════════════ Account list ═══════════════════════ -->
-        <ScrollViewer Grid.Row="1" Style="{StaticResource ListScroll}" Padding="16,14,16,6">
-            <StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="SearchButton" Style="{StaticResource IconButton}"
+                                Content="&#xE721;" FontSize="13.5" ToolTip="{loc:Tr tip.search}" AutomationProperties.Name="{loc:Tr tip.search}"
+                                Click="SearchButton_Click"/>
+                        <Button x:Name="MiniButton" Style="{StaticResource IconButton}"
+                                Content="&#xE73F;" FontSize="13.5" ToolTip="{loc:Tr tip.mini}" AutomationProperties.Name="{loc:Tr tip.mini}"
+                                Click="MiniButton_Click"/>
+                        <Button x:Name="SettingsButton" Style="{StaticResource IconButton}"
+                                Content="&#xE713;" FontSize="15" ToolTip="{loc:Tr tip.settings}" AutomationProperties.Name="{loc:Tr tip.settings}"
+                                Click="SettingsButton_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-                <ItemsControl x:Name="AccountList">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border x:Name="Card" Style="{StaticResource Card}">
-                                <StackPanel>
+            <!-- ═══════════════════════ Account list ═══════════════════════ -->
+            <ScrollViewer Grid.Row="1" Style="{StaticResource ListScroll}" Padding="16,14,16,6">
+                <StackPanel>
 
-                                    <!-- ── identity row ── -->
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
+                    <ItemsControl x:Name="AccountList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid x:Name="CardRoot" Margin="0,0,0,10" Background="Transparent">
 
-                                        <Grid Grid.Column="0" Width="42" Height="42"
-                                              VerticalAlignment="Center" Margin="0,0,10,0">
-                                            <!-- Live 5-hour usage as a ring around the avatar. -->
-                                            <ctl:UsageRing Percent="{Binding FiveHourValue}"
-                                                           ProgressBrush="{Binding FiveHourBrush}"
-                                                           TrackBrush="{DynamicResource SurfaceHi}"
-                                                           ShowRing="{Binding ShowUsageRing}"
-                                                           Thickness="2.6"/>
-                                            <Border x:Name="Avatar"
-                                                    Width="34" Height="34" CornerRadius="17"
-                                                    Background="{Binding AvatarBrush}">
-                                                <TextBlock x:Name="AvatarText" Text="{Binding Initial}"
-                                                           FontSize="13.5" FontWeight="SemiBold"
-                                                           Foreground="{Binding AvatarTextBrush}"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </Grid>
+                                    <!-- Lifts off the page on hover. An empty sibling rather than an
+                                         effect on the card, which would switch ClearType off for all
+                                         of the card's text. -->
+                                    <Border x:Name="Lift" CornerRadius="13" Margin="1"
+                                            Background="{DynamicResource Bg}" Opacity="0">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="18" ShadowDepth="4" Direction="270"
+                                                              Opacity="0.16" Color="{DynamicResource ShadowColor}"/>
+                                        </Border.Effect>
+                                    </Border>
 
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding DisplayLabel}"
-                                                       FontSize="{StaticResource FontStrong}" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource Text}"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock x:Name="Sub" Text="{Binding Subtitle}"
-                                                       FontSize="{StaticResource FontSmall}" Margin="0,2,0,0"
-                                                       Foreground="{DynamicResource TextMuted}"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,6,0">
-                                            <TextBlock Text="🔒" Visibility="{Binding ExcludedVisibility}"
-                                                       FontSize="10" VerticalAlignment="Center" Margin="0,0,5,0"
-                                                       Foreground="{DynamicResource TextMuted}"
-                                                       ToolTip="{loc:Tr menu.excludeFromAutoTip}"/>
-                                            <Border Visibility="{Binding MostFreeVisibility}" CornerRadius="5"
-                                                    Padding="7,3" Margin="0,0,5,0"
-                                                    Background="{DynamicResource AccentSoft}"
-                                                    BorderBrush="{DynamicResource AccentBorder}" BorderThickness="1">
-                                                <TextBlock Text="{loc:Tr card.mostFree}"
-                                                           FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource Accent}"/>
-                                            </Border>
-                                            <Border Style="{StaticResource Badge}">
-                                                <TextBlock Text="{Binding PlanBadge}" Style="{StaticResource BadgeText}"/>
-                                            </Border>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Button x:Name="UseButton" Style="{StaticResource GhostButton}"
-                                                    Content="{Binding ActionLabel}" Padding="13,6"
-                                                    FontSize="{StaticResource FontSmall}"
-                                                    Tag="{Binding}" Click="UseButton_Click"/>
-                                            <Button Style="{StaticResource IconButton}" Content="⋯"
-                                                    Width="26" Height="26" Margin="3,0,0,0"
-                                                    ToolTip="{loc:Tr tip.more}"
-                                                    Tag="{Binding}" Click="MoreButton_Click"/>
-                                        </StackPanel>
-                                    </Grid>
-
-                                    <!-- ── usage panel (hidden in compact mode) ── -->
-                                    <Border x:Name="UsageBox" Margin="0,12,0,0" Padding="12,11"
-                                            CornerRadius="9"
-                                            Visibility="{Binding UsageVisibility}"
-                                            Background="{DynamicResource Surface}"
-                                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                                            ToolTip="{Binding UsageTooltip}">
+                                    <Border x:Name="Card" Style="{StaticResource Card}">
                                         <StackPanel>
 
+                                            <!-- ── identity row ── -->
                                             <Grid>
-                                                <TextBlock Text="{loc:Tr usage.fiveHour}" HorizontalAlignment="Left"
-                                                           FontSize="{StaticResource FontSmall}"
-                                                           Foreground="{DynamicResource TextMuted}"/>
-                                                <TextBlock Text="…" HorizontalAlignment="Right"
-                                                           Visibility="{Binding PendingVisibility}"
-                                                           FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource Text}"/>
-                                                <TextBlock HorizontalAlignment="Right"
-                                                           Visibility="{Binding ValueVisibility}"
-                                                           Text="{Binding ShownPercent, ElementName=FiveBar, StringFormat={}{0:0}%}"
-                                                           FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource Text}"/>
-                                            </Grid>
-                                            <ctl:UsageBar x:Name="FiveBar" Height="5" Margin="0,6,0,0"
-                                                          Percent="{Binding FiveHourValue}"
-                                                          Fill="{Binding FiveHourBrush}"
-                                                          Track="{DynamicResource SurfaceHi}"/>
-                                            <TextBlock Text="{Binding FiveHourReset}" Margin="0,4,0,0"
-                                                       FontSize="{StaticResource FontCaption}"
-                                                       Foreground="{DynamicResource TextMuted}"/>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
 
-                                            <Grid Margin="0,12,0,0">
-                                                <TextBlock Text="{loc:Tr usage.sevenDay}" HorizontalAlignment="Left"
-                                                           FontSize="{StaticResource FontSmall}"
-                                                           Foreground="{DynamicResource TextMuted}"/>
-                                                <TextBlock Text="…" HorizontalAlignment="Right"
-                                                           Visibility="{Binding PendingVisibility}"
-                                                           FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource Text}"/>
-                                                <TextBlock HorizontalAlignment="Right"
-                                                           Visibility="{Binding ValueVisibility}"
-                                                           Text="{Binding ShownPercent, ElementName=SevenBar, StringFormat={}{0:0}%}"
-                                                           FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource Text}"/>
-                                            </Grid>
-                                            <ctl:UsageBar x:Name="SevenBar" Height="5" Margin="0,6,0,0"
-                                                          Percent="{Binding SevenDayValue}"
-                                                          Fill="{Binding SevenDayBrush}"
-                                                          Track="{DynamicResource SurfaceHi}"/>
-                                            <TextBlock Text="{Binding SevenDayReset}" Margin="0,4,0,0"
-                                                       FontSize="{StaticResource FontCaption}"
-                                                       Foreground="{DynamicResource TextMuted}"/>
+                                                <Grid x:Name="AvatarHost" Grid.Column="0" Width="44" Height="44"
+                                                      VerticalAlignment="Center" Margin="0,0,11,0">
+                                                    <!-- Live 5-hour usage as a ring around the avatar. -->
+                                                    <ctl:UsageRing Percent="{Binding FiveHourValue}"
+                                                                   ProgressBrush="{Binding FiveHourBrush}"
+                                                                   TrackBrush="{DynamicResource SurfaceHi}"
+                                                                   ShowRing="{Binding ShowUsageRing}"
+                                                                   Thickness="2.6"/>
+                                                    <Border x:Name="Avatar"
+                                                            Width="35" Height="35" CornerRadius="17.5"
+                                                            Background="{Binding AvatarBrush}">
+                                                        <TextBlock x:Name="AvatarText" Text="{Binding Initial}"
+                                                                   FontSize="14" FontWeight="SemiBold"
+                                                                   Foreground="{Binding AvatarTextBrush}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
 
-                                            <Border Height="1" Margin="0,11,0,0" Background="{DynamicResource Border}"/>
-                                            <Grid Margin="0,8,0,0">
-                                                <TextBlock Text="{Binding UsageAsOf}" HorizontalAlignment="Left"
-                                                           FontSize="{StaticResource FontCaption}"
-                                                           Foreground="{DynamicResource TextMuted}"
-                                                           TextTrimming="CharacterEllipsis"/>
-                                                <!-- 5-hour usage trend over recent samples. -->
-                                                <Polyline HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                          Visibility="{Binding SparkVisibility}"
-                                                          Points="{Binding SparkPoints}"
-                                                          Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
-                                                          StrokeLineJoin="Round" Width="74" Height="16"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayLabel}"
+                                                               FontSize="{StaticResource FontStrong}" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource Text}"
+                                                               TextTrimming="CharacterEllipsis"/>
+
+                                                    <!-- Plan and badges ride along the second line, leaving
+                                                         the name the whole width it needs. -->
+                                                    <Grid Margin="0,4,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <Border Grid.Column="0" Style="{StaticResource Badge}"
+                                                                Padding="6,1.5" Margin="0,0,6,0"
+                                                                Visibility="{Binding PlanVisibility}">
+                                                            <TextBlock Text="{Binding PlanBadge}" Style="{StaticResource BadgeText}"
+                                                                       FontSize="9.5"/>
+                                                        </Border>
+                                                        <Border Grid.Column="1" Visibility="{Binding MostFreeVisibility}"
+                                                                CornerRadius="6" Padding="6,1.5" Margin="0,0,6,0"
+                                                                Background="{DynamicResource AccentSoft}"
+                                                                BorderBrush="{DynamicResource AccentBorder}" BorderThickness="1"
+                                                                VerticalAlignment="Center">
+                                                            <TextBlock Text="{loc:Tr card.mostFree}"
+                                                                       FontSize="9.5" FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource Accent}"/>
+                                                        </Border>
+                                                        <TextBlock Grid.Column="2" Style="{StaticResource Glyph}" Text="&#xE72E;"
+                                                                   Visibility="{Binding ExcludedVisibility}"
+                                                                   FontSize="10.5" Margin="0,0,6,0"
+                                                                   Foreground="{DynamicResource TextMuted}"
+                                                                   ToolTip="{loc:Tr menu.excludeFromAutoTip}"/>
+                                                        <TextBlock x:Name="Sub" Grid.Column="3" Text="{Binding Subtitle}"
+                                                                   FontSize="{StaticResource FontSmall}"
+                                                                   Foreground="{DynamicResource TextMuted}"
+                                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                                            VerticalAlignment="Center" Margin="8,0,0,0">
+                                                    <!-- The account in use says so, instead of a disabled button. -->
+                                                    <Border x:Name="ActiveChip" Visibility="Collapsed"
+                                                            CornerRadius="9" Padding="10,5.5"
+                                                            Background="{DynamicResource Bg}"
+                                                            BorderBrush="{DynamicResource AccentBorder}" BorderThickness="1">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Ellipse Width="6" Height="6" Margin="0,0,6,0"
+                                                                     Fill="{DynamicResource Accent}" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{loc:Tr card.active}"
+                                                                       FontSize="{StaticResource FontSmall}" FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource Accent}"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Button x:Name="UseButton" Style="{StaticResource SwitchButton}"
+                                                            Content="{Binding ActionLabel}" Padding="13,6"
+                                                            FontSize="{StaticResource FontSmall}"
+                                                            Tag="{Binding}" Click="UseButton_Click"/>
+                                                    <Button Style="{StaticResource IconButton}" Content="&#xE712;"
+                                                            Width="28" Height="28" FontSize="13" Margin="4,0,-4,0"
+                                                            ToolTip="{loc:Tr tip.more}" AutomationProperties.Name="{loc:Tr tip.more}"
+                                                            Tag="{Binding}" Click="MoreButton_Click"/>
+                                                </StackPanel>
                                             </Grid>
+
+                                            <!-- ── usage panel (hidden in compact mode) ── -->
+                                            <Border x:Name="UsageBox" Margin="0,12,0,0" Padding="12,11"
+                                                    CornerRadius="10"
+                                                    Visibility="{Binding UsageVisibility}"
+                                                    Background="{DynamicResource Surface}"
+                                                    BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                                    ToolTip="{Binding UsageTooltip}">
+                                                <StackPanel>
+
+                                                    <Grid>
+                                                        <TextBlock Text="{loc:Tr usage.fiveHour}" HorizontalAlignment="Left"
+                                                                   FontSize="{StaticResource FontSmall}"
+                                                                   Foreground="{DynamicResource TextMuted}"/>
+                                                        <TextBlock Text="…" HorizontalAlignment="Right"
+                                                                   Visibility="{Binding PendingVisibility}"
+                                                                   FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource Text}"/>
+                                                        <TextBlock HorizontalAlignment="Right"
+                                                                   Visibility="{Binding ValueVisibility}"
+                                                                   Text="{Binding ShownPercent, ElementName=FiveBar, StringFormat={}{0:0}%}"
+                                                                   FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource Text}"/>
+                                                    </Grid>
+                                                    <ctl:UsageBar x:Name="FiveBar" Height="5" Margin="0,6,0,0"
+                                                                  Percent="{Binding FiveHourValue}"
+                                                                  Fill="{Binding FiveHourBrush}"
+                                                                  Track="{DynamicResource SurfaceHi}"/>
+                                                    <TextBlock Text="{Binding FiveHourReset}" Margin="0,4,0,0"
+                                                               FontSize="{StaticResource FontCaption}"
+                                                               Foreground="{DynamicResource TextMuted}"/>
+
+                                                    <Grid Margin="0,12,0,0">
+                                                        <TextBlock Text="{loc:Tr usage.sevenDay}" HorizontalAlignment="Left"
+                                                                   FontSize="{StaticResource FontSmall}"
+                                                                   Foreground="{DynamicResource TextMuted}"/>
+                                                        <TextBlock Text="…" HorizontalAlignment="Right"
+                                                                   Visibility="{Binding PendingVisibility}"
+                                                                   FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource Text}"/>
+                                                        <TextBlock HorizontalAlignment="Right"
+                                                                   Visibility="{Binding ValueVisibility}"
+                                                                   Text="{Binding ShownPercent, ElementName=SevenBar, StringFormat={}{0:0}%}"
+                                                                   FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource Text}"/>
+                                                    </Grid>
+                                                    <ctl:UsageBar x:Name="SevenBar" Height="5" Margin="0,6,0,0"
+                                                                  Percent="{Binding SevenDayValue}"
+                                                                  Fill="{Binding SevenDayBrush}"
+                                                                  Track="{DynamicResource SurfaceHi}"/>
+                                                    <TextBlock Text="{Binding SevenDayReset}" Margin="0,4,0,0"
+                                                               FontSize="{StaticResource FontCaption}"
+                                                               Foreground="{DynamicResource TextMuted}"/>
+
+                                                    <Border Height="1" Margin="0,11,0,0" Background="{DynamicResource Border}"/>
+                                                    <Grid Margin="0,8,0,0">
+                                                        <TextBlock Text="{Binding UsageAsOf}" HorizontalAlignment="Left"
+                                                                   FontSize="{StaticResource FontCaption}"
+                                                                   Foreground="{DynamicResource TextMuted}"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <!-- 5-hour usage trend over recent samples. -->
+                                                        <Polyline HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                  Visibility="{Binding SparkVisibility}"
+                                                                  Points="{Binding SparkPoints}"
+                                                                  Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
+                                                                  StrokeLineJoin="Round" Width="74" Height="16"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
                                         </StackPanel>
                                     </Border>
-                                </StackPanel>
-                            </Border>
 
-                            <DataTemplate.Triggers>
-                                <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                    <Setter TargetName="Card" Property="Background" Value="{DynamicResource AccentSoft}"/>
-                                    <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource AccentBorder}"/>
-                                    <Setter TargetName="UsageBox" Property="Background" Value="{DynamicResource Bg}"/>
-                                    <Setter TargetName="UseButton" Property="IsEnabled" Value="False"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding NeedsReauth}" Value="True">
-                                    <Setter TargetName="Sub" Property="Foreground" Value="{DynamicResource Danger}"/>
-                                </DataTrigger>
-                            </DataTemplate.Triggers>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                                    <!-- A firmer edge on hover, faded rather than switched. -->
+                                    <Border x:Name="HoverRing" CornerRadius="13" IsHitTestVisible="False"
+                                            BorderBrush="{DynamicResource BorderStrong}" BorderThickness="1"
+                                            Opacity="0"/>
 
-                <!-- ── empty state ── -->
-                <Border x:Name="EmptyState" Visibility="Collapsed"
-                        Background="{DynamicResource Surface}" CornerRadius="11"
-                        BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                        Padding="22,30" Margin="0,4,0,0">
-                    <StackPanel HorizontalAlignment="Center">
-                        <TextBlock x:Name="EmptyTitle" Text="{loc:Tr empty.title}"
-                                   FontSize="{StaticResource FontStrong}" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource Text}" HorizontalAlignment="Center"/>
-                        <TextBlock x:Name="EmptyBody" Margin="0,7,0,0" FontSize="{StaticResource FontBody}"
-                                   TextAlignment="Center" TextWrapping="Wrap" LineHeight="18"
-                                   Foreground="{DynamicResource TextMuted}"
-                                   Text="{loc:Tr empty.body}"/>
-                    </StackPanel>
+                                    <!-- The band of light that crosses a card as it becomes active
+                                         (painted by ListAnimator). -->
+                                    <Border x:Name="Shine" CornerRadius="13" IsHitTestVisible="False" Opacity="0"/>
+                                </Grid>
+
+                                <DataTemplate.Triggers>
+                                    <Trigger SourceName="CardRoot" Property="IsMouseOver" Value="True">
+                                        <Trigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Opacity"
+                                                                     To="1" Duration="0:0:0.2"/>
+                                                    <DoubleAnimation Storyboard.TargetName="HoverRing" Storyboard.TargetProperty="Opacity"
+                                                                     To="1" Duration="0:0:0.16"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </Trigger.EnterActions>
+                                        <Trigger.ExitActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Opacity"
+                                                                     To="0" Duration="0:0:0.3"/>
+                                                    <DoubleAnimation Storyboard.TargetName="HoverRing" Storyboard.TargetProperty="Opacity"
+                                                                     To="0" Duration="0:0:0.26"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </Trigger.ExitActions>
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                        <Setter TargetName="Card" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                                        <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource AccentBorder}"/>
+                                        <Setter TargetName="HoverRing" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                        <Setter TargetName="UsageBox" Property="Background" Value="{DynamicResource Bg}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ActionKind}" Value="active">
+                                        <Setter TargetName="UseButton" Property="Visibility" Value="Collapsed"/>
+                                        <Setter TargetName="ActiveChip" Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ActionKind}" Value="reauth">
+                                        <Setter TargetName="UseButton" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                                        <Setter TargetName="UseButton" Property="BorderBrush" Value="{DynamicResource AccentBorder}"/>
+                                        <Setter TargetName="UseButton" Property="Foreground" Value="{DynamicResource Accent}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding NeedsReauth}" Value="True">
+                                        <Setter TargetName="Sub" Property="Foreground" Value="{DynamicResource Danger}"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- ── empty state ── -->
+                    <Border x:Name="EmptyState" Visibility="Collapsed"
+                            Background="{DynamicResource Surface}" CornerRadius="14"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            Padding="24,28" Margin="0,4,0,0">
+                        <StackPanel HorizontalAlignment="Center">
+                            <!-- Two overlapping avatars: "more than one account" at a glance. -->
+                            <Grid Width="74" Height="48" HorizontalAlignment="Center">
+                                <Border Width="44" Height="44" CornerRadius="22" HorizontalAlignment="Left"
+                                        Background="{DynamicResource SurfaceHi}"
+                                        BorderBrush="{DynamicResource Surface}" BorderThickness="3">
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE77B;" FontSize="17"
+                                               Foreground="{DynamicResource TextMuted}"/>
+                                </Border>
+                                <Border Width="44" Height="44" CornerRadius="22" HorizontalAlignment="Right"
+                                        Background="{DynamicResource AccentSoft}"
+                                        BorderBrush="{DynamicResource Surface}" BorderThickness="3">
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE8FA;" FontSize="16"
+                                               Foreground="{DynamicResource Accent}"/>
+                                </Border>
+                            </Grid>
+                            <TextBlock x:Name="EmptyTitle" Text="{loc:Tr empty.title}" Margin="0,14,0,0"
+                                       FontSize="{StaticResource FontStrong}" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource Text}" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="EmptyBody" Margin="0,6,0,0" FontSize="{StaticResource FontBody}"
+                                       TextAlignment="Center" TextWrapping="Wrap" LineHeight="18" MaxWidth="290"
+                                       Foreground="{DynamicResource TextMuted}"
+                                       Text="{loc:Tr empty.body}"/>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ═══════════════════════ Toast ═══════════════════════
+                 Floats over the bottom of the list, just above the footer, then leaves on its own. -->
+            <Grid x:Name="Toast" Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                  Margin="16,0,16,14" MaxWidth="380" Visibility="Collapsed" Cursor="Hand"
+                  MouseLeftButtonUp="Toast_Click">
+                <Border CornerRadius="12" Background="{DynamicResource TooltipBg}" Margin="1">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="20" ShadowDepth="5" Direction="270" Opacity="0.3"
+                                          Color="{DynamicResource ShadowColor}"/>
+                    </Border.Effect>
                 </Border>
-
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- ══════════════════════════ Footer ══════════════════════════ -->
-        <Border Grid.Row="2" Background="{DynamicResource Surface}"
-                BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
-                Padding="16,13">
-            <StackPanel>
-
-                <!-- ── update banner: available → downloading → restart ── -->
-                <Border x:Name="UpdateBanner" Visibility="Collapsed" Margin="0,0,0,11"
-                        Background="{DynamicResource AccentSoft}" CornerRadius="9"
-                        BorderBrush="{DynamicResource AccentBorder}" BorderThickness="1"
-                        Padding="13,11">
+                <Border CornerRadius="12" Background="{DynamicResource TooltipBg}" Padding="13,10,15,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0">
-                            <TextBlock x:Name="UpdateTitle"
-                                       FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource Text}"
-                                       TextTrimming="CharacterEllipsis"/>
-                            <TextBlock x:Name="UpdateBody" Margin="0,3,0,0"
-                                       FontSize="{StaticResource FontSmall}"
-                                       Foreground="{DynamicResource TextSecondary}"
-                                       TextTrimming="CharacterEllipsis"/>
-
-                            <!-- Same two-column star trick the usage bars use. -->
-                            <Border x:Name="UpdateProgressTrack" Visibility="Collapsed"
-                                    Height="5" Margin="0,8,0,1" CornerRadius="2.5"
-                                    Background="{DynamicResource SurfaceHi}" ClipToBounds="True">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition x:Name="UpdateDone" Width="0*"/>
-                                        <ColumnDefinition x:Name="UpdateLeft" Width="100*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" CornerRadius="2.5"
-                                            Background="{DynamicResource Accent}"/>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-
-                        <Button Grid.Column="1" x:Name="UpdateButton" Style="{StaticResource PrimaryButton}"
-                                VerticalAlignment="Center" Padding="15,8"
-                                FontSize="{StaticResource FontSmall}"
-                                Click="UpdateButton_Click"/>
+                        <TextBlock x:Name="ToastIcon" Style="{StaticResource Glyph}" FontSize="14"
+                                   VerticalAlignment="Top" Margin="0,1,10,0"/>
+                        <TextBlock x:Name="ToastText" Grid.Column="1"
+                                   FontSize="{StaticResource FontSmall}" LineHeight="17"
+                                   Foreground="{DynamicResource TooltipText}" TextWrapping="Wrap"/>
                     </Grid>
                 </Border>
+            </Grid>
 
-                <TextBlock x:Name="StatusText" Visibility="Collapsed"
-                           FontSize="{StaticResource FontSmall}" Margin="2,0,2,11"
-                           Foreground="{DynamicResource TextSecondary}"
-                           TextWrapping="Wrap" LineHeight="17"/>
+            <!-- ══════════════════════════ Footer ══════════════════════════ -->
+            <Border Grid.Row="2" Background="{DynamicResource Surface}"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
+                    Padding="16,13">
+                <StackPanel>
 
-                <Border x:Name="CodePanel" Visibility="Collapsed" Margin="0,0,0,11"
-                        Background="{DynamicResource AccentSoft}" CornerRadius="9"
-                        BorderBrush="{DynamicResource AccentBorder}" BorderThickness="1"
-                        Padding="13,11">
-                    <StackPanel>
-                        <TextBlock x:Name="CodeTitle" Text="{loc:Tr code.title}"
-                                   FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource Text}"/>
-                        <TextBlock x:Name="CodeBody" Margin="0,5,0,0" FontSize="{StaticResource FontSmall}"
-                                   TextWrapping="Wrap" LineHeight="17"
-                                   Foreground="{DynamicResource TextSecondary}"
-                                   Text="{loc:Tr code.body}"/>
-                        <Grid Margin="0,10,0,0">
+                    <!-- ── update banner: available → downloading → restart ── -->
+                    <Border x:Name="UpdateBanner" Visibility="Collapsed" Margin="0,0,0,11"
+                            Background="{DynamicResource AccentSoft}" CornerRadius="11"
+                            BorderBrush="{DynamicResource AccentBorder}" BorderThickness="1"
+                            Padding="12,11">
+                        <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="CodeBox" Grid.Column="0" Style="{StaticResource Field}"
-                                     KeyDown="CodeBox_KeyDown"/>
-                            <Button x:Name="SubmitCodeButton" Grid.Column="1" Margin="7,0,0,0"
-                                    Style="{StaticResource PrimaryButton}" Content="{loc:Tr code.submit}"
-                                    Padding="15,8" Click="SubmitCodeButton_Click"/>
+
+                            <Border Width="32" Height="32" CornerRadius="10" VerticalAlignment="Center"
+                                    Background="{DynamicResource Accent}" Margin="0,0,11,0">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE896;" FontSize="14"
+                                           Foreground="White"/>
+                            </Border>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <TextBlock x:Name="UpdateTitle"
+                                           FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource Text}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="UpdateBody" Margin="0,2,0,0"
+                                           FontSize="{StaticResource FontSmall}"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <!-- Eases toward each new percentage instead of stepping. -->
+                                <ctl:UsageBar x:Name="UpdateProgress" Visibility="Collapsed"
+                                              Height="5" Margin="0,8,0,1"
+                                              Fill="{DynamicResource Accent}" Track="{DynamicResource SurfaceHi}"/>
+                            </StackPanel>
+
+                            <Button Grid.Column="2" x:Name="UpdateButton" Style="{StaticResource PrimaryButton}"
+                                    VerticalAlignment="Center" Padding="15,8"
+                                    FontSize="{StaticResource FontSmall}"
+                                    Click="UpdateButton_Click"/>
                         </Grid>
-                    </StackPanel>
-                </Border>
+                    </Border>
 
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="9"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="9"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="0" x:Name="SaveCurrentButton" Style="{StaticResource GhostButton}"
-                            Content="{loc:Tr footer.saveCurrent}" Click="SaveCurrentButton_Click"/>
-                    <Button Grid.Column="2" x:Name="AddAccountButton" Style="{StaticResource PrimaryButton}"
-                            Content="{loc:Tr footer.addAccount}" Click="AddAccountButton_Click"/>
-                </Grid>
-            </StackPanel>
-        </Border>
+                        <Button Grid.Column="0" x:Name="SaveCurrentButton" Style="{StaticResource GhostButton}"
+                                AutomationProperties.Name="{loc:Tr footer.saveCurrent}"
+                                Click="SaveCurrentButton_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE74E;" FontSize="13"
+                                           Margin="0,0,8,0"/>
+                                <TextBlock Text="{loc:Tr footer.saveCurrent}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="2" x:Name="AddAccountButton" Style="{StaticResource PrimaryButton}"
+                                AutomationProperties.Name="{loc:Tr footer.addAccount}"
+                                Click="AddAccountButton_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE710;" FontSize="12"
+                                           Margin="0,0,8,0"/>
+                                <TextBlock Text="{loc:Tr footer.addAccount}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <!-- ═══════════════════ Settings layer ═══════════════════ -->
-        <!-- Covers the whole window and fades in over it, so opening preferences never costs
-             the user a second window to find, move, and close. Built on first use. -->
-        <Grid x:Name="SettingsLayer" Grid.RowSpan="3"
-              Visibility="Collapsed" Opacity="0"
+        <!-- Slides in over the whole window, so opening preferences never costs the user a second
+             window to find, move, and close. Built on first use. -->
+        <Grid x:Name="SettingsLayer" Visibility="Collapsed" Opacity="0"
               Background="{DynamicResource Bg}">
             <Grid.RenderTransform>
-                <TranslateTransform x:Name="SettingsShift" Y="10"/>
+                <TranslateTransform x:Name="SettingsShift" X="28"/>
             </Grid.RenderTransform>
         </Grid>
 
         <!-- ═══════════════════ Command palette (Ctrl+K) ═══════════════════ -->
         <!-- Keyboard-first switching: type a name, Enter switches. A dimmed backdrop with a
-             floating search card, faded in over everything. -->
-        <Grid x:Name="PaletteLayer" Grid.RowSpan="3"
-              Visibility="Collapsed" Opacity="0"
-              Background="#66000000"
+             floating search card. -->
+        <Grid x:Name="PaletteLayer" Visibility="Collapsed"
               MouseLeftButtonDown="PaletteBackdrop_Click">
-            <Border Width="340" MaxHeight="360" VerticalAlignment="Top" Margin="0,70,0,0"
-                    HorizontalAlignment="Center"
-                    Background="{DynamicResource Surface}" CornerRadius="12"
-                    BorderBrush="{DynamicResource BorderStrong}" BorderThickness="1">
-                <Border.RenderTransform>
-                    <TranslateTransform x:Name="PaletteShift" Y="-8"/>
-                </Border.RenderTransform>
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.28" Color="Black"/>
-                </Border.Effect>
-                <StackPanel>
-                    <TextBox x:Name="PaletteBox" Style="{StaticResource Field}"
-                             Margin="10,10,10,6" FontSize="{StaticResource FontBody}"
-                             TextChanged="PaletteBox_TextChanged" PreviewKeyDown="PaletteBox_KeyDown"/>
-                    <ListBox x:Name="PaletteList" Background="Transparent" BorderThickness="0"
-                             MaxHeight="290" Margin="4,0,4,8"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             MouseUp="PaletteList_Click">
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
-                                <Setter Property="Padding" Value="8,7"/>
-                                <Setter Property="Margin" Value="2,1"/>
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="pb" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="pb" Property="Background" Value="{DynamicResource AccentSoft}"/>
-                                                </Trigger>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="pb" Property="Background" Value="{DynamicResource SurfaceHi}"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding DisplayLabel}"
-                                               FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource Text}"
-                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding PaletteHint}"
-                                               FontSize="{StaticResource FontCaption}"
-                                               Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </StackPanel>
-            </Border>
+            <Border x:Name="PaletteBackdrop" Background="{DynamicResource Overlay}" Opacity="0"/>
+
+            <Grid x:Name="PaletteCard" Width="350" VerticalAlignment="Top" Margin="0,68,0,0"
+                  HorizontalAlignment="Center" Opacity="0" RenderTransformOrigin="0.5,0">
+                <Border CornerRadius="14" Background="{DynamicResource Raised}" Margin="1">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="30" ShadowDepth="8" Direction="270" Opacity="0.3"
+                                          Color="{DynamicResource ShadowColor}"/>
+                    </Border.Effect>
+                </Border>
+                <Border CornerRadius="14" Background="{DynamicResource Raised}" MaxHeight="380"
+                        BorderBrush="{DynamicResource BorderStrong}" BorderThickness="1">
+                    <StackPanel>
+                        <Grid Margin="10,10,10,6">
+                            <TextBox x:Name="PaletteBox" Style="{StaticResource Field}"
+                                     FontSize="{StaticResource FontBody}" Padding="34,9,10,9"
+                                     TextChanged="PaletteBox_TextChanged" PreviewKeyDown="PaletteBox_KeyDown"/>
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE721;" FontSize="13"
+                                       HorizontalAlignment="Left" Margin="12,0,0,0" IsHitTestVisible="False"
+                                       Foreground="{DynamicResource TextMuted}"/>
+                            <TextBlock x:Name="PalettePlaceholder" Text="{loc:Tr palette.placeholder}"
+                                       FontSize="{StaticResource FontBody}" VerticalAlignment="Center"
+                                       Margin="37,0,0,0" IsHitTestVisible="False"
+                                       Foreground="{DynamicResource TextMuted}"/>
+                        </Grid>
+                        <ListBox x:Name="PaletteList" Background="Transparent" BorderThickness="0"
+                                 MaxHeight="300" Margin="4,0,4,8"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 MouseUp="PaletteList_Click">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="8,6"/>
+                                    <Setter Property="Margin" Value="2,1"/>
+                                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="pb" Background="Transparent" CornerRadius="9"
+                                                        Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="pb" Property="Background" Value="{DynamicResource SurfaceHi}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="pb" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="26" Height="26" CornerRadius="13" Margin="0,0,10,0"
+                                                Background="{Binding AvatarBrush}">
+                                            <TextBlock Text="{Binding Initial}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="White"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{Binding DisplayLabel}"
+                                                   FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource Text}"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding PaletteHint}" Margin="8,0,2,0"
+                                                   FontSize="{StaticResource FontCaption}"
+                                                   Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
+
+        <!-- ═══════════════════ Add-account sheet ═══════════════════ -->
+        <!-- Hosts AddAccountSheet, created the first time someone adds an account. -->
+        <Grid x:Name="SheetLayer"/>
     </Grid>
 </Window>

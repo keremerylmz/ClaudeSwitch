@@ -32,7 +32,11 @@ internal static class WindowChrome
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
+
     private const uint SwpNoMove = 0x0002, SwpNoSize = 0x0001, SwpNoZOrder = 0x0004, SwpFrameChanged = 0x0020;
+    private const int WmNcActivate = 0x0086;
 
     public static void Apply(Window window, bool dark)
     {
@@ -43,11 +47,20 @@ internal static class WindowChrome
         if (DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref flag, sizeof(int)) != 0)
             DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkModeOld, ref flag, sizeof(int));
 
+        if (!window.IsVisible) return;
+
         // The attribute takes effect but the caption doesn't repaint until the frame is
         // recalculated. A width nudge often missed it (the caption kept its old colour after a
         // theme switch); a SWP_FRAMECHANGED forces the non-client area to redraw right now.
-        if (window.IsVisible)
-            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoZOrder | SwpFrameChanged);
+        SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoZOrder | SwpFrameChanged);
+
+        // …and on Windows 10 even that redraws only part of it: the title turns dark-mode white
+        // on a black box while the bar itself keeps the old colour, until the window is next
+        // activated. Replaying the activation message repaints the whole caption now — flipped
+        // and flipped back, so it ends in whatever state the window was really in.
+        var active = window.IsActive;
+        SendMessage(hwnd, WmNcActivate, active ? IntPtr.Zero : 1, IntPtr.Zero);
+        SendMessage(hwnd, WmNcActivate, active ? 1 : IntPtr.Zero, IntPtr.Zero);
     }
 
     /// <summary>

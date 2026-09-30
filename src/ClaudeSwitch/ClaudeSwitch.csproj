@@ -11,7 +11,7 @@
     <AssemblyName>ClaudeSwitch</AssemblyName>
     <RootNamespace>ClaudeSwitch</RootNamespace>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>0.4.2</Version>
+    <Version>0.5.0</Version>
     <Product>ClaudeSwitch</Product>
     <Description>One-click Claude Code account switcher for CLI and VS Code</Description>
 
@@ -57,6 +57,12 @@
       omits System.IO. This app is mostly file manipulation, so put it back.
     -->
     <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- `dotnet watch` only tracks C# by default; this makes a XAML edit restart the app too.
+         Watch items are read by dotnet watch alone and change nothing about a normal build. -->
+    <Watch Include="**\*.xaml" Exclude="$(DefaultItemExcludes)" />
   </ItemGroup>
 
 </Project>

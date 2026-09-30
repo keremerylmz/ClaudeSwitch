@@ -74,6 +74,12 @@ internal sealed class AppSettings
     /// <summary>Account list order: "recent", "name", "free", or "plan".</summary>
     public string AccountSort { get; set; } = "recent";
 
+    /// <summary>
+    /// How adding an account opens the sign-in page: "ask" each time, straight to the default
+    /// "browser", or "copy" the link for the user to paste wherever the right account lives.
+    /// </summary>
+    public string SignInMethod { get; set; } = "ask";
+
     /// <summary>Launch on sign-in and sit in the tray.</summary>
     public bool StartWithWindows { get; set; }
 

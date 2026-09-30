@@ -68,7 +68,7 @@ jobs:
 
             | File | When to use it |
             |---|---|
-            | `ClaudeSwitch-standalone.exe` | Most people. Nothing to install. |
+            | `ClaudeSwitch.exe` | Most people. Nothing to install. |
             | `ClaudeSwitch-lite.exe` | If you already have the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0). |
 
             These builds are unsigned; if SmartScreen warns you,

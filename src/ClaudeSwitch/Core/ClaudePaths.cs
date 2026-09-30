@@ -67,14 +67,6 @@ internal static class ClaudePaths
         (Path.Combine(configDir, ".credentials.json"),
          Path.Combine(configDir, ".claude.json"));
 
-    /// <summary>A fresh scratch directory for one isolated login.</summary>
-    public static string CreateScratchConfigDir()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), $"claudeswitch-login-{Guid.NewGuid():n}");
-        Directory.CreateDirectory(dir);
-        return dir;
-    }
-
     public static void EnsureAppDirectories()
     {
         Directory.CreateDirectory(ProfilesDir);

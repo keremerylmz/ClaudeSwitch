@@ -22,6 +22,19 @@
     <SolidColorBrush x:Key="Warning"        Color="#B7761F"/>
     <SolidColorBrush x:Key="Danger"         Color="#B4443A"/>
 
+    <SolidColorBrush x:Key="SuccessSoft"    Color="#E8F3EE"/>
+    <SolidColorBrush x:Key="WarningSoft"    Color="#FAF0E1"/>
+    <SolidColorBrush x:Key="DangerSoft"     Color="#FAEAE8"/>
+
+    <!-- Floating layers: the sheet and toasts sit one step above the page, and the page
+         behind a sheet is dimmed rather than hidden. -->
+    <SolidColorBrush x:Key="Raised"         Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Overlay"        Color="#591C1915"/>
+    <Color x:Key="ShadowColor">#2A1F14</Color>
+
+    <!-- The light that sweeps across a card the moment it becomes the active account. -->
+    <Color x:Key="ShineColor">#80F2C4B0</Color>
+
     <SolidColorBrush x:Key="ScrollThumb"      Color="#CFCBC4"/>
     <SolidColorBrush x:Key="ScrollThumbHover" Color="#AFAAA1"/>
 

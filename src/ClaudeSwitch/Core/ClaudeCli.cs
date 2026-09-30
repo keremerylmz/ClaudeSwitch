@@ -6,8 +6,8 @@ namespace ClaudeSwitch.Core;
 /// Locates and launches the Claude Code CLI.
 ///
 /// We deliberately do not reimplement Anthropic's OAuth flow. Adding an account means running
-/// the real <c>claude</c> login in a terminal and capturing whatever credentials it writes —
-/// which keeps this tool correct even when the login flow changes upstream.
+/// the real <c>claude auth login</c> (see <see cref="LoginSession"/>) and capturing whatever
+/// credentials it writes — which keeps this tool correct even when the login flow changes upstream.
 /// </summary>
 internal static class ClaudeCli
 {
@@ -98,45 +98,4 @@ internal static class ClaudeCli
     }
 
     public static bool IsInstalled => Resolve() is not null;
-
-    private static string RequireExe() =>
-        Resolve() ?? throw new FileNotFoundException(
-            "Claude Code CLI not found. To install it: npm install -g @anthropic-ai/claude-code");
-
-    /// <summary>
-    /// Opens a visible terminal on the subscription login flow.
-    ///
-    /// <c>auth login --claudeai</c> goes straight there — no interactive session to start, no
-    /// "/login" to type, no auth-method menu to pick from. Visible on purpose: the flow prints
-    /// a URL and waits for the user to finish in a browser.
-    /// </summary>
-    /// <param name="email">Optional address to pre-fill on the login page.</param>
-    /// <param name="configDir">
-    /// When set, CLAUDE_CONFIG_DIR is pointed here for the login only. The new account's
-    /// credentials land in this directory instead of the user's real one, so the account
-    /// currently in use is never signed out and never at risk. Verified behaviour:
-    /// `claude auth status` reports "not logged in" against a fresh directory while the
-    /// real profile stays authenticated.
-    /// </param>
-    public static void LaunchLogin(string? email = null, string? configDir = null)
-    {
-        var exe = RequireExe();
-
-        var command = $"\"{exe}\" auth login --claudeai";
-        if (!string.IsNullOrWhiteSpace(email)) command += $" --email \"{email}\"";
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = "cmd.exe",
-            // cmd /k keeps the window open afterwards so the user can read the result.
-            Arguments = $"/k \"{command}\"",
-            UseShellExecute = false,   // required for the environment override below
-            WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        };
-
-        if (!string.IsNullOrWhiteSpace(configDir))
-            psi.Environment["CLAUDE_CONFIG_DIR"] = configDir;
-
-        Process.Start(psi);
-    }
 }

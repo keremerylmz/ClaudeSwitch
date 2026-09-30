@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using ClaudeSwitch.Core;
-using Cursors = System.Windows.Input.Cursors;
 
 namespace ClaudeSwitch;
 
@@ -66,14 +65,20 @@ public partial class SettingsPanel : System.Windows.Controls.UserControl
         _settings.ThemeMode = mode;
         _settings.Save();
 
-        // Crossfade every open window from the old theme into the new one.
-        var windows = Application.Current.Windows.Cast<Window>().Where(w => w.IsVisible).ToList();
-        ThemeTransition.Crossfade(windows, () =>
+        void Swap()
         {
             ThemeManager.ApplyMode(mode);
             _settings.Save();   // ThemeManager resolved "system"; persist the matching DarkMode flag
-        });
+        }
 
+        // The new theme spreads out from the pill that was clicked; any other open window (the
+        // mini pill) crossfades along with it.
+        if (Window.GetWindow(this) is { } host && _clickOrigin is { } origin)
+            ThemeTransition.Reveal(host, origin, Swap);
+        else
+            ThemeTransition.Crossfade(Application.Current.Windows.Cast<Window>().Where(w => w.IsVisible).ToList(), Swap);
+
+        _popSelection = true;
         BuildPillLists();
     }
 
@@ -134,8 +139,18 @@ public partial class SettingsPanel : System.Windows.Controls.UserControl
         if (sort == _settings.AccountSort) return;
         _settings.AccountSort = sort;
         _settings.Save();
+        _popSelection = true;
         BuildPillLists();
         _onChanged();
+    }
+
+    private void SelectSignIn(string method)
+    {
+        if (method == _settings.SignInMethod) return;
+        _settings.SignInMethod = method;
+        _settings.Save();
+        _popSelection = true;
+        BuildPillLists();
     }
 
     // ── behavior ────────────────────────────────────────────────────────────
@@ -152,6 +167,7 @@ public partial class SettingsPanel : System.Windows.Controls.UserControl
         if (percent == _settings.AutoSwitchThreshold) return;
         _settings.AutoSwitchThreshold = percent;
         _settings.Save();
+        _popSelection = true;
         BuildPillLists();
     }
 
@@ -241,7 +257,36 @@ public partial class SettingsPanel : System.Windows.Controls.UserControl
         }
     }
 
+    /// <summary>Puts keyboard focus on the panel's first control as it opens.</summary>
+    public void FocusFirst() => BackButton.Focus();
+
+    // ── entrance ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Lets the sections arrive one after another as the panel slides in — a short cascade that
+    /// reads as the page assembling itself rather than appearing all at once.
+    /// </summary>
+    public void PlayEntrance()
+    {
+        var index = 0;
+        foreach (UIElement section in Sections.Children)
+        {
+            if (section.Visibility != Visibility.Visible) continue;
+
+            // Only the first screenful is worth staggering; the rest can't be seen yet anyway.
+            if (index > 12) { Motion.Set(section, OpacityProperty, 1); continue; }
+            Motion.Rise(section, 10, Motion.Long, TimeSpan.FromMilliseconds(60 + 24 * index));
+            index++;
+        }
+    }
+
     // ── pill lists ──────────────────────────────────────────────────────────
+
+    /// <summary>Where the last pill click landed, in window coordinates — the theme reveal's centre.</summary>
+    private System.Windows.Point? _clickOrigin;
+
+    /// <summary>Set by a selection so the newly chosen pill pops as the lists are rebuilt.</summary>
+    private bool _popSelection;
 
     private void BuildPillLists()
     {
@@ -260,53 +305,65 @@ public partial class SettingsPanel : System.Windows.Controls.UserControl
             ("plan", Loc.T("settings.sortPlan")),
         ], _settings.AccountSort, SelectSort);
 
+        Fill(SignInList,
+        [
+            ("ask", Loc.T("settings.signInAsk")),
+            ("browser", Loc.T("settings.signInBrowser")),
+            ("copy", Loc.T("settings.signInCopy")),
+        ], _settings.SignInMethod, SelectSignIn);
+
         Fill(ThresholdList,
             [.. new[] { 85, 90, 95, 98 }.Select(p => (p.ToString(), $"{p}%"))],
             _settings.AutoSwitchThreshold.ToString(),
             key => SelectThreshold(int.Parse(key)));
 
-        LanguageList.Items.Clear();
+        LanguageList.Children.Clear();
         foreach (var lang in Loc.Languages)
-            LanguageList.Items.Add(BuildPill(lang.Name, lang.Code == Loc.Current, () => SelectLanguage(lang.Code)));
-    }
+            LanguageList.Children.Add(BuildPill(lang.Name, lang.Code == Loc.Current, () => SelectLanguage(lang.Code)));
 
-    private static void Fill(ItemsControl list, (string Key, string Label)[] options,
-                             string selected, Action<string> onSelect)
-    {
-        list.Items.Clear();
-        foreach (var (key, label) in options)
-            list.Items.Add(BuildPill(label, key == selected, () => onSelect(key)));
+        _popSelection = false;
     }
 
     /// <summary>
-    /// Colours are set with SetResourceReference, not FindResource: a pill built with the
-    /// latter keeps the brush it captured and stays light after a switch to dark mode.
+    /// Fills a row with pills. A plain panel rather than an ItemsControl: the latter wraps each
+    /// button in an item for screen readers and hides the button — and its Invoke — behind it.
     /// </summary>
-    private static Border BuildPill(string label, bool selected, Action onClick)
+    private void Fill(System.Windows.Controls.Panel row, (string Key, string Label)[] options,
+                      string selected, Action<string> onSelect)
     {
-        var text = new TextBlock
+        row.Children.Clear();
+        foreach (var (key, label) in options)
+            row.Children.Add(BuildPill(label, key == selected, () => onSelect(key)));
+    }
+
+    /// <summary>
+    /// One choice, styled by the "Pill" template. All colours come from the template's dynamic
+    /// resources, so a pill never keeps the brush of the theme it was built in.
+    /// </summary>
+    private Button BuildPill(string label, bool selected, Action onClick)
+    {
+        var pill = new Button
         {
-            Text = label,
-            FontSize = 12.5,
-            FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal,
-            VerticalAlignment = VerticalAlignment.Center,
+            Content = label,
+            Style = (Style)FindResource("Pill"),
+            Tag = selected ? "on" : null,
         };
 
-        var pill = new Border
+        if (selected && _popSelection) Motion.Pop(pill, 0.88, Motion.Medium);
+
+        pill.Click += (_, _) =>
         {
-            Child = text,
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(13, 8, 13, 8),
-            Margin = new Thickness(3),
-            Cursor = Cursors.Hand,
-            BorderThickness = new Thickness(selected ? 1.4 : 1),
+            // The theme reveal grows from here: the pointer when there is one, else the pill's
+            // centre (a keyboard press).
+            if (Window.GetWindow(pill) is { Content: UIElement root })
+            {
+                _clickOrigin = pill.IsMouseOver
+                    ? System.Windows.Input.Mouse.GetPosition(root)
+                    : pill.TranslatePoint(new System.Windows.Point(pill.ActualWidth / 2, pill.ActualHeight / 2), root);
+            }
+
+            onClick();
         };
-
-        text.SetResourceReference(TextBlock.ForegroundProperty, selected ? "Accent" : "Text");
-        pill.SetResourceReference(Border.BackgroundProperty, selected ? "AccentSoft" : "Bg");
-        pill.SetResourceReference(Border.BorderBrushProperty, selected ? "AccentBorder" : "Border");
-
-        pill.MouseLeftButtonUp += (_, _) => onClick();
         return pill;
     }
 
@@ -346,6 +403,8 @@ public partial class SettingsPanel : System.Windows.Controls.UserControl
         AccountsHeader.Text = Loc.T("settings.accounts");
         SortTitle.Text = Loc.T("settings.sort");
         SortDesc.Text = Loc.T("settings.sortDesc");
+        SignInTitle.Text = Loc.T("settings.signIn");
+        SignInDesc.Text = Loc.T("settings.signInDesc");
         TrayClickTitle.Text = Loc.T("settings.trayClick");
         TrayClickDesc.Text = Loc.T("settings.trayClickDesc");
         TrayUsageTitle.Text = Loc.T("settings.trayUsage");

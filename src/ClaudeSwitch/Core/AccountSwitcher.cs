@@ -48,7 +48,7 @@ internal sealed class AccountSwitcher
 
     /// <summary>
     /// Reads a finished account out of an isolated login directory (see
-    /// <see cref="ClaudePaths.CreateScratchConfigDir"/>). Returns null until the login
+    /// <see cref="LoginSession.ConfigDir"/>). Returns null until the login
     /// completes and both files exist with a usable oauthAccount.
     /// </summary>
     public (Profile Profile, ProfileSecret Secret)? CaptureFromConfigDir(string configDir)

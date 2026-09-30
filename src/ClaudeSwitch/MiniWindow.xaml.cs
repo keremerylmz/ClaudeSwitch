@@ -21,6 +21,12 @@ public partial class MiniWindow : Window
         SourceInitialized += (_, _) => WindowChrome.ApplyBackdrop(this, mica: false);   // just rounds the corners
         Loaded += (_, _) => RestorePosition();
         LocationChanged += (_, _) => SavePosition();
+
+        // The pill pops into place rather than blinking on.
+        IsVisibleChanged += (_, e) =>
+        {
+            if (e.NewValue is true) Motion.Rise(Pill, 8, Motion.Long, fromScale: 0.92);
+        };
     }
 
     /// <summary>Mirrors the active account onto the pill; a null account means nobody is signed in.</summary>

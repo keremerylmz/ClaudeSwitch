@@ -41,8 +41,9 @@
             </StackPanel>
 
             <Button x:Name="RestoreButton" Style="{StaticResource IconButton}"
-                    Content="&#x2922;" FontSize="15" Width="26" Height="26"
+                    Content="&#xE740;" FontSize="12" Width="26" Height="26"
                     VerticalAlignment="Center" ToolTip="{loc:Tr mini.restore}"
+                    AutomationProperties.Name="{loc:Tr mini.restore}"
                     Click="Restore_Click"
                     xmlns:loc="clr-namespace:ClaudeSwitch"/>
         </StackPanel>
